@@ -11,7 +11,7 @@ using namespace std;
 typedef double real;
 
 const real ACCURACY = 0.005;
-const int PATIENCE = 1000;
+const int PATIENCE = 2000;
 const int BISECT_ITERATIONS = 100;
 
 struct quaternion
@@ -68,7 +68,7 @@ quaternion operator /(const quaternion& a, const real b) {
 }
 
 quaternion infinity () {
-    real inf = std::numeric_limits<real>::infinity();
+    real inf = numeric_limits<real>::infinity();
     return (quaternion){inf, inf, inf, inf};
 }
 
@@ -88,6 +88,7 @@ public:
     virtual quaternion normal(quaternion) = 0;
     virtual color get_color(quaternion, quaternion) = 0;
     tuple<quaternion, quaternion> trace(quaternion, quaternion);
+    tuple<quaternion, quaternion, real> trace_S3(quaternion, quaternion);
 };
 
 class Sphere: public Raytraceable {
@@ -210,10 +211,60 @@ tuple<quaternion, quaternion> Raytraceable::trace(quaternion source, quaternion 
             b = c;
             target = half_way;
         } else {
-            throw string("Bijection collapse");
+            cerr << "Bijection collapse" << endl;
+            break;
         }
     }
     return {0.5 * (source + target), direction};
+}
+
+tuple<quaternion, quaternion, real> Raytraceable::trace_S3(quaternion source, quaternion target) {
+    quaternion direction = target - source;
+    direction = direction / norm(direction);
+    target = source + direction * ACCURACY;
+    target = target / norm(target);
+    real a = this->s_distance(source);
+    real b = this->s_distance(target);
+    real distance = 0;
+    // Ray march
+    for (int i = 0; i < PATIENCE; ++i) {
+        if (a*b <= 0) {
+            break;
+        }
+        quaternion temp = target;
+        target = 2.0 * target - source;
+        target = target / norm(target);
+        source = temp;
+        distance += norm(source - target);
+        a = b;
+        b = this->s_distance(target);
+    }
+    direction = target - source;
+    direction = direction / norm(direction);
+    if (a*b > 0) {
+        return {infinity(), direction, numeric_limits<real>::infinity()};
+    }
+    // Ray bisect
+    quaternion bisect_start = source;
+    for (int i = 0; i < BISECT_ITERATIONS; ++i) {
+        quaternion half_way = 0.5 * (source + target);
+        half_way = half_way / norm(half_way);
+        real c = this->s_distance(half_way);
+        if (a*c >= 0) {
+            a = c;
+            source = half_way;
+        } else if (b*c >= 0) {
+            b = c;
+            target = half_way;
+        } else {
+            cerr << "Bijection collapse" << endl;
+            break;
+        }
+    }
+    target = 0.5 * (source + target);
+    distance += norm(bisect_start - target);
+    // Not recalculating direction here due to floating point instability.
+    return {target, direction, distance};
 }
 
 color raytrace(quaternion source, quaternion target, int depth, const vector<shared_ptr<Raytraceable>>& objects) {
@@ -241,7 +292,34 @@ color raytrace(quaternion source, quaternion target, int depth, const vector<sha
     return result;
 }
 
-int main ()
+color raytrace_S3(quaternion source, quaternion target, int depth, const vector<shared_ptr<Raytraceable>>& objects) {
+    if (depth <= 0) {
+        return (color){0, 0, 0};
+    }
+    vector<shared_ptr<Raytraceable>>::const_iterator obj;
+    color result = {0, 0, 0};
+    quaternion closest_surface = infinity();
+    real closest_distance = numeric_limits<real>::infinity();
+
+    for (obj = objects.begin(); obj != objects.end(); ++obj) {
+        auto [surface, ray, distance] = (*obj)->trace_S3(source, target);
+        if (distance >= closest_distance) {
+            continue;
+        }
+        closest_surface = surface;
+        closest_distance = distance;
+        if ((*obj)->reflective) {
+            quaternion normal = (*obj)->normal(surface);
+            ray = ray - 2 * normal * dot(ray, normal);
+            result = raytrace_S3(surface + ACCURACY * ray, surface + ray, depth - 1, objects);
+        } else {
+            result = (*obj)->get_color(surface, ray / norm(ray));
+        }
+    }
+    return result;
+}
+
+int main_cartesian ()
 {
     quaternion camera_pos = {0, 1.232, 1, -3};
     quaternion look_at = {0, 0, 0, 0};
@@ -301,4 +379,61 @@ int main ()
         }
         cout << endl;
     }
+    return EXIT_SUCCESS;
+}
+
+int main()
+{
+    quaternion camera_pos = {1, 0, 0, 0};
+    // quaternion look_at = {0, 0, 1, 0};
+
+    shared_ptr<Sphere> sphere = make_shared<Sphere>();
+    sphere->location = {1, 0.02, 0.1, 0.5};
+    sphere->location = sphere->location / norm(sphere->location);
+    sphere->radius = 0.2;
+    sphere->reflective = true;
+
+    shared_ptr<Sphere> sphere2 = make_shared<Sphere>();
+    sphere2->location = {1, -0.03, -0.5, 0.7};
+    sphere2->location = sphere2->location / norm(sphere2->location);
+    sphere2->radius = 0.1;
+    sphere2->reflective = false;
+
+    shared_ptr<Box> box = make_shared<Box>();
+    box->location = {1, 0.82, -0.2, 0.5};
+    box->location = box->location / norm(box->location);
+    box->length = 0.2;
+    box->width = 0.31;
+    box->height = 0.31;
+    box->depth = 0.23;
+    box->reflective = false;
+
+    vector<shared_ptr<Raytraceable>> objects;
+    objects.push_back(sphere);
+    objects.push_back(sphere2);
+    objects.push_back(box);
+
+    int width = 500;
+    int height = 500;
+
+    default_random_engine generator;
+    normal_distribution<real> distribution(0.0, 0.2 / (real) width);
+
+    cout << "P2" << endl;
+    cout << width << " " << height << endl;
+    cout << 255 << endl;
+    for (int j = 0; j < height; ++j) {
+        cerr << (j * 100) / height << "%" << endl;
+        real y_ = 1 - 2 * (j / (real) height);
+        for (int i = 0; i < width; ++i) {
+            real x = 1 - 2 * (i / (real) width) + distribution(generator);
+            real y = y_ + distribution(generator);
+            quaternion target = {1, x, y, 1};
+            target = target / norm(target);
+            color pixel = raytrace_S3(camera_pos, target, 6, objects);
+            cout << setw(4) << left << (int) (pixel.r * 255);
+        }
+        cout << endl;
+    }
+    return EXIT_SUCCESS;
 }
