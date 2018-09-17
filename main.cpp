@@ -1,4 +1,3 @@
-// my second program in C++
 #include <iostream>
 #include <iomanip>
 #include <limits>
@@ -87,7 +86,7 @@ public:
     virtual real s_distance(quaternion) = 0;
     virtual quaternion normal(quaternion) = 0;
     virtual color get_color(quaternion, quaternion) = 0;
-    tuple<quaternion, quaternion> trace(quaternion, quaternion);
+    virtual tuple<quaternion, quaternion> trace(quaternion, quaternion);
     tuple<quaternion, quaternion, real> trace_S3(quaternion, quaternion);
 };
 
@@ -97,6 +96,7 @@ public:
     real s_distance(quaternion);
     quaternion normal(quaternion);
     color get_color(quaternion, quaternion);
+    tuple<quaternion, quaternion> trace(quaternion, quaternion);
 };
 
 real Sphere::s_distance(quaternion location) {
@@ -216,6 +216,35 @@ tuple<quaternion, quaternion> Raytraceable::trace(quaternion source, quaternion 
         }
     }
     return {0.5 * (source + target), direction};
+}
+
+tuple<quaternion, quaternion> Sphere::trace(quaternion source, quaternion target) {
+    // Solve for t
+    // |v - this->location|^2 = this->radius^2
+    // v = source + t * (target - source)
+    // ~ |u + t * w|^2 = r^2
+    // (u + t * w)*(u + t * w)' = r^2
+    // |u|^2 + t * (u*w' + w*u') + t^2*|w|^2 = r^2
+    // |w|^2*t^2 + 2*dot(u, w) * t + |u|^2 - r^2 = 0
+    // t = (-dot(u, w) +- sqrt(dot(u, w)^2+|w|^2*(r^2-|u|^2))) / |w|^2
+    quaternion u = source - this->location;
+    quaternion w = target - source;
+    w = w / norm(w);
+    real b = dot(u, w);
+    real d = b*b + this->radius * this->radius - dot(u, u);
+    if (d < 0) {
+        return {infinity(), w};
+    }
+    d = sqrt(d);
+    real t = -b + d;
+    real t1 = -b - d;
+    if (t1 < t && t1 > 0) {
+        t = t1;
+    }
+    if (t < 0) {
+        return {infinity(), w};
+    }
+    return {source + t * w, w};
 }
 
 tuple<quaternion, quaternion, real> Raytraceable::trace_S3(quaternion source, quaternion target) {
@@ -382,10 +411,9 @@ int main_cartesian ()
     return EXIT_SUCCESS;
 }
 
-int main()
+int main_S3()
 {
     quaternion camera_pos = {1, 0, 0, 0};
-    // quaternion look_at = {0, 0, 1, 0};
 
     shared_ptr<Sphere> sphere = make_shared<Sphere>();
     sphere->location = {1, 0.02, 0.1, 0.5};
@@ -436,4 +464,8 @@ int main()
         cout << endl;
     }
     return EXIT_SUCCESS;
+}
+
+int main() {
+    return main_cartesian();
 }
