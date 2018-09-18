@@ -13,6 +13,7 @@ typedef double real;
 const real ACCURACY = 0.001;
 const int PATIENCE = 5000;
 const int BISECT_ITERATIONS = 100;
+const real EPSILON = 1e-12;
 
 struct quaternion
 {
@@ -87,6 +88,15 @@ real dot(const quaternion& a, const quaternion& b) {
 
 quaternion project(const quaternion& a, const quaternion& b) {
     return dot(a, b) * a;
+}
+
+quaternion cross_align(const quaternion& a, const quaternion& b) {
+    quaternion c = b;
+    real angle = dot(a, b);
+    if (angle > EPSILON) {
+        c = a - b / angle;
+    }
+    return c / norm(c);
 }
 
 class Raytraceable {
@@ -415,6 +425,7 @@ int main_cartesian ()
     int height = 100;
 
     default_random_engine generator;
+    generator.seed(random_device()());
     normal_distribution<real> distribution(0.0, 0.2 / (real) width);
 
     cout << "P2" << endl;
@@ -522,9 +533,42 @@ void test_location() {
     assert(radius < 0.5 + ACCURACY);
 }
 
+void test_great_circle() {
+    default_random_engine generator;
+    generator.seed(random_device()());
+    normal_distribution<real> distribution(0.0, 1);
+    quaternion source = {
+        distribution(generator),
+        distribution(generator),
+        distribution(generator),
+        distribution(generator)
+    };
+    quaternion target = {
+        distribution(generator),
+        distribution(generator),
+        distribution(generator),
+        distribution(generator)
+    };
+    source = source / norm(source);
+    target = target / norm(target);
+
+    quaternion omega = cross_align(source, target);
+
+    real min_distance = numeric_limits<real>::infinity();
+    for (int i = 0; i < 100; ++i) {
+        real theta = M_PI * i * 0.02;
+        quaternion v = cos(theta) * source + sin(theta) * omega;
+        if (norm(v - target) < min_distance) {
+            min_distance = norm(v - target);
+        }
+    }
+    assert(min_distance < 0.1);
+}
+
 int main() {
     test_trace();
     test_scale();
     test_location();
+    test_great_circle();
     return main_cartesian();
 }
