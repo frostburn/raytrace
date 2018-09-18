@@ -10,8 +10,8 @@ using namespace std;
 
 typedef double real;
 
-const real ACCURACY = 0.01;
-const int PATIENCE = 1000;
+const real ACCURACY = 0.001;
+const int PATIENCE = 5000;
 const int BISECT_ITERATIONS = 100;
 
 struct quaternion
@@ -22,12 +22,7 @@ struct quaternion
     real z;
 };
 
-struct color
-{
-    real r;
-    real g;
-    real b;
-};
+typedef quaternion color;
 
 std::ostream& operator<<(std::ostream& os, const quaternion& v)
 {
@@ -197,7 +192,7 @@ color Sphere::get_color(quaternion location, quaternion ray) {
     if (angle < 0.1) {
         angle = 0.1;
     }
-    return (color) {angle, 0, 0};
+    return (color) {0, angle, 0, 0};
 }
 
 tuple<quaternion, quaternion> Sphere::trace(quaternion source, quaternion target) {
@@ -236,70 +231,40 @@ tuple<quaternion, quaternion> Sphere::trace(quaternion source, quaternion target
     return {this->project(u + t * w), direction};
 }
 
-/*
-class Box: public Raytraceable {
+class CliffordTorus: public Raytraceable {
 public:
-    real length;
-    real width;
-    real height;
-    real depth;
     real s_distance(quaternion);
     quaternion normal(quaternion);
     color get_color(quaternion, quaternion);
 };
 
-real Box::s_distance(quaternion location) {
-    real temp;
-    location = location - this->location;
-    real distance = fabs(location.r) - 0.5 * this->length;
-    temp = fabs(location.x) - 0.5 * this->width;
-    if (temp > distance) {
-        distance = temp;
+real CliffordTorus::s_distance(quaternion location) {
+    real rx = sqrt(location.r * location.r + location.x * location.x);
+    real yz = sqrt(location.y * location.y + location.z * location.z);
+    if (rx > yz) {
+        return rx - 1;
     }
-    temp = fabs(location.y) - 0.5 * this->height;
-    if (temp > distance) {
-        distance = temp;
-    }
-    temp = fabs(location.z) - 0.5 * this->depth;
-    if (temp > distance) {
-        distance = temp;
-    }
-    return distance;
+    return yz - 1;
 }
 
-quaternion Box::normal(quaternion location) {
-    real temp;
-    location = location - this->location;
-    quaternion n = {location.r, 0, 0, 0};
-    real distance = fabs(location.r) - 0.5 * this->length;
-    temp = fabs(location.x) - 0.5 * this->width;
-    if (temp > distance) {
-        distance = temp;
-        n = {0, location.x, 0, 0};
+quaternion CliffordTorus::normal(quaternion location) {
+    real rx = sqrt(location.r * location.r + location.x * location.x);
+    real yz = sqrt(location.y * location.y + location.z * location.z);
+    if (rx > yz) {
+        return (quaternion){location.r / rx, location.x / rx, 0, 0};
     }
-    temp = fabs(location.y) - 0.5 * this->height;
-    if (temp > distance) {
-        distance = temp;
-        n = {0, 0, location.y, 0};
-    }
-    temp = fabs(location.z) - 0.5 * this->depth;
-    if (temp > distance) {
-        distance = temp;
-        n = {0, 0, 0, location.z};
-    }
-    return n / norm(n);
+    return (quaternion){0, 0, location.y / yz, location.z / yz};
 }
 
-color Box::get_color(quaternion location, quaternion ray) {
-    location = location * 5;
-    real result = 1;
-    // real result *= location.r - floor(location.r + 0.5);
-    result *= location.x - floor(location.x + 0.5);
-    result *= location.y - floor(location.y + 0.5);
-    result *= location.z - floor(location.z + 0.5);
-    return (color) {0.2 + 0.2 * (result > 0), 0, 0};
+color CliffordTorus::get_color(quaternion location, quaternion ray) {
+    quaternion n = this->normal(location);
+    real angle = -dot(n, ray);
+    if (angle < 0.1) {
+        angle = 0.1;
+    }
+    real pattern = cos(10*location.r)*cos(10*location.x)*cos(10*location.y)*cos(10*location.z);
+    return (color) {0, (0.5 + 0.4 * pattern) * angle, 0, 0};
 }
-*/
 
 tuple<quaternion, quaternion, real> Raytraceable::trace_S3(quaternion source, quaternion target) {
     quaternion direction = target - source;
@@ -352,10 +317,10 @@ tuple<quaternion, quaternion, real> Raytraceable::trace_S3(quaternion source, qu
 
 color raytrace(quaternion source, quaternion target, int depth, const vector<shared_ptr<Raytraceable>>& objects) {
     if (depth <= 0) {
-        return (color){0, 0, 0};
+        return (color){0, 0.05, 0, 0};
     }
     vector<shared_ptr<Raytraceable>>::const_iterator obj;
-    color result = {0, 0, 0};
+    color result = {0, 0.05, 0, 0};
     quaternion closest_surface = infinity();
 
     for (obj = objects.begin(); obj != objects.end(); ++obj) {
@@ -364,25 +329,27 @@ color raytrace(quaternion source, quaternion target, int depth, const vector<sha
             continue;
         }
         closest_surface = surface;
+        surface = (*obj)->inverse_project(surface);
+        ray = (*obj)->inverse_project(ray + (*obj)->location);  // hack
+        result = (*obj)->get_color(surface, ray / norm(ray));
         if ((*obj)->reflective) {
             quaternion normal = (*obj)->normal(surface);
             ray = ray - 2 * normal * dot(ray, normal);
-            result = raytrace(surface + ACCURACY * ray, surface + ray, depth - 1, objects);
-        } else {
-            surface = (*obj)->inverse_project(surface);
-            ray = (*obj)->inverse_project(ray + (*obj)->location);  // hack
-            result = (*obj)->get_color(surface, ray / norm(ray));
+            surface = (*obj)->project(surface);
+            ray = (*obj)->project(ray) - (*obj)->location;  // hack
+            result = 0.1 * result + 0.9 * raytrace(surface + ACCURACY * ray, surface + ray, depth - 1, objects);
         }
     }
     return result;
 }
 
+/*
 color raytrace_S3(quaternion source, quaternion target, int depth, const vector<shared_ptr<Raytraceable>>& objects) {
     if (depth <= 0) {
-        return (color){0, 0, 0};
+        return (color){0.1, 0, 0};
     }
     vector<shared_ptr<Raytraceable>>::const_iterator obj;
-    color result = {0, 0, 0};
+    color result = {0.1, 0, 0};
     quaternion closest_surface = infinity();
     real closest_distance = numeric_limits<real>::infinity();
 
@@ -403,11 +370,12 @@ color raytrace_S3(quaternion source, quaternion target, int depth, const vector<
     }
     return result;
 }
+*/
 
 int main_cartesian ()
 {
-    quaternion camera_pos = {0, 0, 0, -3};
-    quaternion look_at = {0, 0, 0, 0};
+    quaternion camera_pos = {0, 1, 0.5, -2.2};
+    quaternion look_at = {0, 0, 0.3, 0};
     quaternion up = {0, 0, 1, 0};
     real view_width = 1;
 
@@ -421,27 +389,27 @@ int main_cartesian ()
     up = up / norm(up) * view_width;
 
     shared_ptr<Sphere> sphere = make_shared<Sphere>();
-    sphere->location = {0, 0, 0, 0};
-    sphere->scale = sphere->scale * 0.4;
-    sphere->reflective = false;
+    sphere->location = {0, 0, -0.2, 0};
+    sphere->scale = sphere->scale * 1.4;
+    sphere->scale.y = 0.3;
+    sphere->reflective = true;
 
     shared_ptr<Sphere> another_sphere = make_shared<Sphere>();
-    another_sphere->location = {0, 0.2, 0.4, -0.5};
+    another_sphere->location = {0, 0.2, 0.4, 0.5};
     another_sphere->scale = another_sphere->scale * 0.2;
     another_sphere->reflective = false;
 
-    // shared_ptr<Box> box = make_shared<Box>();
-    // box->location = {0, 0, -1, 0};
-    // box->length = 0;
-    // box->width = 1;
-    // box->height = 2;
-    // box->depth = 1;
-    // box->reflective = false;
+    shared_ptr<CliffordTorus> cylinder = make_shared<CliffordTorus>();
+    cylinder->location = {0, -0.3, 0.5, -0.2};
+    cylinder->scale = cylinder->scale * 0.3;
+    cylinder->left_transform = (quaternion){1, 0.3, 0.3, 0.1};
+    cylinder->right_transform = 1.0 / cylinder->left_transform;
+    cylinder->reflective = false;
 
     vector<shared_ptr<Raytraceable>> objects;
     objects.push_back(sphere);
     objects.push_back(another_sphere);
-    //objects.push_back(box);
+    objects.push_back(cylinder);
 
     int width = 100;
     int height = 100;
@@ -460,7 +428,7 @@ int main_cartesian ()
             real y = y_ + distribution(generator);
             quaternion target = look_at + x * vleft + y * up;
             color pixel = raytrace(camera_pos, target, 10, objects);
-            cout << setw(4) << left << (int) (pixel.r * 255);
+            cout << setw(4) << left << (int) (pixel.x * 255);
         }
         cout << endl;
     }
