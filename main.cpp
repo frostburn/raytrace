@@ -6,426 +6,69 @@
 #include <memory>
 #include <random>
 #include <cassert>
+
+#include "raytrace/quaternion.h"
+#include "raytrace/ray_traceable.h"
+#include "raytrace/gradient_traceable.h"
+#include "raytrace/sphere.h"
+#include "raytrace/clifford_torus.h"
+#include "raytrace/trace.h"
+
 using namespace std;
 
-typedef double real;
-
-const real ACCURACY = 0.001;
-const int PATIENCE = 5000;
-const int BISECT_ITERATIONS = 100;
-const real EPSILON = 1e-12;
-
-struct quaternion
+int main()
 {
-    real r;
-    real x;
-    real y;
-    real z;
-};
+    quaternion camera_pos = {1, 0.1, 0.05, 0};
+    camera_pos = camera_pos / norm(camera_pos);
 
-typedef quaternion color;
+    // shared_ptr<Sphere> sphere = make_shared<Sphere>();
+    // sphere->location = {1, 0, 0, 1};
+    // sphere->location = sphere->location / norm(sphere->location);
+    // sphere->scale = sphere->scale * 0.2;
+    // sphere->reflective = true;
 
-std::ostream& operator<<(std::ostream& os, const quaternion& v)
-{
-    return os << "(quaternion){" <<  v.r << ", " << v.x << ", " << v.y << ", " << v.z << "}"; 
-}
+    // shared_ptr<Sphere> sphere2 = make_shared<Sphere>();
+    // sphere2->location = {1, -0.03, -0.5, 0.7};
+    // sphere2->location = sphere2->location / norm(sphere2->location);
+    // sphere2->scale = sphere2->scale * 0.21;
+    // sphere2->reflective = false;
 
-real norm(quaternion v) {
-    return sqrt(v.x*v.x + v.y*v.y + v.z*v.z + v.r*v.r);
-}
+    // shared_ptr<CliffordTorus> box = make_shared<CliffordTorus>();
+    // box->location = {1, 0.82, -0.2, 0.5};
+    // box->location = box->location / norm(box->location);
+    // box->scale = (quaternion) {0.1, 0.05, 0.03, 0.03};
+    // box->reflective = false;
 
-quaternion conjugate(quaternion v) {
-    return (quaternion){v.r, -v.x, -v.y, -v.z};
-}
+    vector<shared_ptr<RayTraceable>> objects;
+    // objects.push_back(sphere);
+    // objects.push_back(sphere2);
+    // objects.push_back(box);
 
-quaternion operator *(const quaternion& a, const real b) {
-    return (quaternion){a.r * b, a.x * b, a.y * b, a.z * b};
-}
-
-quaternion operator *(const real b, const quaternion& a) {
-    return (quaternion){a.r * b, a.x * b, a.y * b, a.z * b};
-}
-
-quaternion operator /(const quaternion& a, const real b) {
-    return a * (1.0 / b);
-}
-
-quaternion operator /(const real a, const quaternion& b) {
-    real r = b.x*b.x + b.y*b.y + b.z*b.z + b.r*b.r;
-    return (a / r) * conjugate(b);
-}
-
-quaternion operator +(const quaternion& a, const quaternion& b) {
-    return (quaternion){a.r + b.r, a.x + b.x, a.y + b.y, a.z + b.z};
-}
-
-quaternion operator -(const quaternion& a, const quaternion& b) {
-    return (quaternion){a.r - b.r, a.x - b.x, a.y - b.y, a.z - b.z};
-}
-
-quaternion operator *(const quaternion& a, const quaternion& b) {
-    return (quaternion){
-        a.r*b.r - a.x*b.x - a.y*b.y - a.z*b.z,
-        a.r*b.x + a.x*b.r + a.y*b.z - a.z*b.y,
-        a.r*b.y - a.x*b.z + a.y*b.r + a.z*b.x,
-        a.r*b.z + a.x*b.y - a.y*b.x + a.z*b.r
-    };
-}
-
-quaternion operator /(const quaternion& a, const quaternion& b) {
-    real r = b.x*b.x + b.y*b.y + b.z*b.z + b.r*b.r;
-    return a * conjugate(b) / r;
-}
-
-quaternion infinity () {
-    real inf = numeric_limits<real>::infinity();
-    return (quaternion){inf, inf, inf, inf};
-}
-
-real dot(const quaternion& a, const quaternion& b) {
-    return a.r * b.r + a.x * b.x + a.y * b.y + a.z * b.z;
-}
-
-quaternion project(const quaternion& a, const quaternion& b) {
-    return dot(a, b) * a;
-}
-
-quaternion cross_align(const quaternion& a, const quaternion& b) {
-    quaternion c = b;
-    real angle = dot(a, b);
-    if (angle > EPSILON) {
-        c = a - b / angle;
-    }
-    return c / norm(c);
-}
-
-class Raytraceable {
-public:
-    quaternion scale {1, 1, 1, 1};
-    quaternion left_transform {1, 0, 0, 0};
-    quaternion right_transform {1, 0, 0, 0};
-    quaternion location {0, 0, 0, 0};
-    bool reflective {false};
-    virtual real s_distance(quaternion) = 0;
-    virtual quaternion normal(quaternion) = 0;
-    virtual color get_color(quaternion, quaternion) = 0;
-    virtual tuple<quaternion, quaternion> trace(quaternion, quaternion);
-    quaternion project(quaternion);
-    quaternion inverse_project(quaternion);
-    tuple<quaternion, quaternion, real> trace_S3(quaternion, quaternion);
-};
-
-quaternion Raytraceable::project(quaternion location) {
-    location = (quaternion){
-        location.r * this->scale.r,
-        location.x * this->scale.x,
-        location.y * this->scale.y,
-        location.z * this->scale.z,
-    };
-    location = this->left_transform * location * this->right_transform;
-    return location + this->location;
-}
-
-quaternion Raytraceable::inverse_project(quaternion location) {
-    location = location - this->location;
-    location = (1.0 / this->left_transform) * location / this->right_transform;
-    return (quaternion){
-        location.r / this->scale.r,
-        location.x / this->scale.x,
-        location.y / this->scale.y,
-        location.z / this->scale.z,
-    };
-}
-
-tuple<quaternion, quaternion> Raytraceable::trace(quaternion source, quaternion target) {
-    quaternion direction = target - source;
-    direction = direction / norm(direction);
-    target = source + direction * ACCURACY;
-
-    source = this->inverse_project(source);
-    target = this->inverse_project(target);
-
-    real a = this->s_distance(source);
-    real b = this->s_distance(target);
-    // Ray march
-    for (int i = 0; i < PATIENCE; ++i) {
-        if (a*b <= 0) {
-            break;
-        }
-        quaternion temp = target;
-        target = 2.0 * target - source;
-        source = temp;
-        a = b;
-        b = this->s_distance(target);
-    }
-    if (a*b > 0) {
-        return {infinity(), direction};
-    }
-    // Ray bisect
-    for (int i = 0; i < BISECT_ITERATIONS; ++i) {
-        quaternion half_way = 0.5 * (source + target);
-        real c = this->s_distance(half_way);
-        if (a*c >= 0) {
-            a = c;
-            source = half_way;
-        } else if (b*c >= 0) {
-            b = c;
-            target = half_way;
-        } else {
-            cerr << "Bijection collapse" << endl;
-            break;
+    int grid_height = 4 - 1;
+    int grid_width = 4 - 1;
+    int grid_depth = 3;
+    for (int j = 0; j <= grid_height; ++j) {
+        real y = 1 - 2 * (j / (real) grid_height);
+        for (int i = 0; i <= grid_width; ++i) {
+            real x = 1 - 2 * (i / (real) grid_width);
+            for (int k = 0; k < grid_depth; ++k) {
+                real z = 1 + k;
+                shared_ptr<Sphere> point = make_shared<Sphere>();
+                point->location = {1, 0.2 * x, 0.2 * y, 0.2 * z};
+                point->location = point->location / norm(point->location);
+                point->scale = point->scale * 0.04;
+                point->reflective = false;
+                objects.push_back(point);
+                quaternion q = {1, 0, 0, 0.2};
+                q = q / norm(q);
+                point->location = q * point->location;
+            }
         }
     }
-
-    return {this->project(0.5 * (source + target)), direction};
-}
-
-class Sphere: public Raytraceable {
-public:
-    real s_distance(quaternion);
-    quaternion normal(quaternion);
-    color get_color(quaternion, quaternion);
-    tuple<quaternion, quaternion> trace(quaternion, quaternion);
-};
-
-real Sphere::s_distance(quaternion location) {
-    return norm(location) - 1;
-}
-
-quaternion Sphere::normal(quaternion location) {
-    return location / norm(location);
-}
-
-color Sphere::get_color(quaternion location, quaternion ray) {
-    quaternion n = this->normal(location);
-    real angle = -dot(n, ray);
-    if (angle < 0.1) {
-        angle = 0.1;
-    }
-    return (color) {0, angle, 0, 0};
-}
-
-tuple<quaternion, quaternion> Sphere::trace(quaternion source, quaternion target) {
-    // Solve for t
-    // |v|^2 = 1
-    // v = source + t * (target - source)
-    // ~ |u + t * w|^2 = 1
-    // (u + t * w)*(u + t * w)' = 1
-    // |u|^2 + t * (u*w' + w*u') + t^2*|w|^2 = 1
-    // |w|^2*t^2 + 2*dot(u, w) * t + |u|^2 - 1 = 0
-    // t = (-dot(u, w) +- sqrt(dot(u, w)^2+|w|^2*(1-|u|^2))) / |w|^2
-
-    quaternion direction = target - source;
-    direction = direction / norm(direction);
-
-    source = this->inverse_project(source);
-    target = this->inverse_project(target);
-
-    quaternion u = source;
-    quaternion w = target - source;
-    w = w / norm(w);
-    real b = dot(u, w);
-    real d = b*b + 1.0 - dot(u, u);
-    if (d < 0) {
-        return {infinity(), direction};
-    }
-    d = sqrt(d);
-    real t = -b + d;
-    real t1 = -b - d;
-    if (t1 < t && t1 > 0) {
-        t = t1;
-    }
-    if (t < 0) {
-        return {infinity(), direction};
-    }
-    return {this->project(u + t * w), direction};
-}
-
-class CliffordTorus: public Raytraceable {
-public:
-    real s_distance(quaternion);
-    quaternion normal(quaternion);
-    color get_color(quaternion, quaternion);
-};
-
-real CliffordTorus::s_distance(quaternion location) {
-    real rx = sqrt(location.r * location.r + location.x * location.x);
-    real yz = sqrt(location.y * location.y + location.z * location.z);
-    if (rx > yz) {
-        return rx - 1;
-    }
-    return yz - 1;
-}
-
-quaternion CliffordTorus::normal(quaternion location) {
-    real rx = sqrt(location.r * location.r + location.x * location.x);
-    real yz = sqrt(location.y * location.y + location.z * location.z);
-    if (rx > yz) {
-        return (quaternion){location.r / rx, location.x / rx, 0, 0};
-    }
-    return (quaternion){0, 0, location.y / yz, location.z / yz};
-}
-
-color CliffordTorus::get_color(quaternion location, quaternion ray) {
-    quaternion n = this->normal(location);
-    real angle = -dot(n, ray);
-    if (angle < 0.1) {
-        angle = 0.1;
-    }
-    real pattern = cos(10*location.r)*cos(10*location.x)*cos(10*location.y)*cos(10*location.z);
-    return (color) {0, (0.5 + 0.4 * pattern) * angle, 0, 0};
-}
-
-tuple<quaternion, quaternion, real> Raytraceable::trace_S3(quaternion source, quaternion target) {
-    quaternion direction = target - source;
-    direction = direction / norm(direction);
-    target = source + direction * ACCURACY;
-    target = target / norm(target);
-    real a = this->s_distance(source);
-    real b = this->s_distance(target);
-    real distance = 0;
-    // Ray march
-    for (int i = 0; i < PATIENCE; ++i) {
-        if (a*b <= 0) {
-            break;
-        }
-        quaternion temp = target;
-        target = 2.0 * target - source;
-        target = target / norm(target);
-        source = temp;
-        distance += norm(source - target);
-        a = b;
-        b = this->s_distance(target);
-    }
-    direction = target - source;
-    direction = direction / norm(direction);
-    if (a*b > 0) {
-        return {infinity(), direction, numeric_limits<real>::infinity()};
-    }
-    // Ray bisect
-    quaternion bisect_start = source;
-    for (int i = 0; i < BISECT_ITERATIONS; ++i) {
-        quaternion half_way = 0.5 * (source + target);
-        half_way = half_way / norm(half_way);
-        real c = this->s_distance(half_way);
-        if (a*c >= 0) {
-            a = c;
-            source = half_way;
-        } else if (b*c >= 0) {
-            b = c;
-            target = half_way;
-        } else {
-            cerr << "Bijection collapse" << endl;
-            break;
-        }
-    }
-    target = 0.5 * (source + target);
-    distance += norm(bisect_start - target);
-    // Not recalculating direction here due to floating point instability.
-    return {target, direction, distance};
-}
-
-color raytrace(quaternion source, quaternion target, int depth, const vector<shared_ptr<Raytraceable>>& objects) {
-    if (depth <= 0) {
-        return (color){0, 0.05, 0, 0};
-    }
-    vector<shared_ptr<Raytraceable>>::const_iterator obj;
-    color result = {0, 0.05, 0, 0};
-    quaternion closest_surface = infinity();
-
-    for (obj = objects.begin(); obj != objects.end(); ++obj) {
-        auto [surface, ray] = (*obj)->trace(source, target);
-        if (norm(surface - source) >= norm(closest_surface - source)) {
-            continue;
-        }
-        closest_surface = surface;
-        surface = (*obj)->inverse_project(surface);
-        ray = (*obj)->inverse_project(ray + (*obj)->location);  // hack
-        result = (*obj)->get_color(surface, ray / norm(ray));
-        if ((*obj)->reflective) {
-            quaternion normal = (*obj)->normal(surface);
-            ray = ray - 2 * normal * dot(ray, normal);
-            surface = (*obj)->project(surface);
-            ray = (*obj)->project(ray) - (*obj)->location;  // hack
-            result = 0.1 * result + 0.9 * raytrace(surface + ACCURACY * ray, surface + ray, depth - 1, objects);
-        }
-    }
-    return result;
-}
-
-/*
-color raytrace_S3(quaternion source, quaternion target, int depth, const vector<shared_ptr<Raytraceable>>& objects) {
-    if (depth <= 0) {
-        return (color){0.1, 0, 0};
-    }
-    vector<shared_ptr<Raytraceable>>::const_iterator obj;
-    color result = {0.1, 0, 0};
-    quaternion closest_surface = infinity();
-    real closest_distance = numeric_limits<real>::infinity();
-
-    for (obj = objects.begin(); obj != objects.end(); ++obj) {
-        auto [surface, ray, distance] = (*obj)->trace_S3(source, target);
-        if (distance >= closest_distance) {
-            continue;
-        }
-        closest_surface = surface;
-        closest_distance = distance;
-        if ((*obj)->reflective) {
-            quaternion normal = (*obj)->normal(surface);
-            ray = ray - 2 * normal * dot(ray, normal);
-            result = raytrace_S3(surface + ACCURACY * ray, surface + ray, depth - 1, objects);
-        } else {
-            result = (*obj)->get_color(surface, ray / norm(ray));
-        }
-    }
-    return result;
-}
-*/
-
-int main_cartesian ()
-{
-    quaternion camera_pos = {0, 1, 0.5, -2.2};
-    quaternion look_at = {0, 0, 0.3, 0};
-    quaternion up = {0, 0, 1, 0};
-    real view_width = 1;
-
-    // Hacky cross products
-    quaternion vleft = (look_at - camera_pos) * up;
-    vleft.r = 0;
-    up = vleft * (look_at - camera_pos);
-    up.r = 0;
-
-    vleft = vleft / norm(vleft) * view_width;
-    up = up / norm(up) * view_width;
-
-    shared_ptr<Sphere> sphere = make_shared<Sphere>();
-    sphere->location = {0, 0, -0.2, 0};
-    sphere->scale = sphere->scale * 1.4;
-    sphere->scale.y = 0.3;
-    sphere->reflective = true;
-
-    shared_ptr<Sphere> another_sphere = make_shared<Sphere>();
-    another_sphere->location = {0, 0.2, 0.4, 0.5};
-    another_sphere->scale = another_sphere->scale * 0.2;
-    another_sphere->reflective = false;
-
-    shared_ptr<CliffordTorus> cylinder = make_shared<CliffordTorus>();
-    cylinder->location = {0, -0.3, 0.5, -0.2};
-    cylinder->scale = cylinder->scale * 0.3;
-    cylinder->left_transform = (quaternion){1, 0.3, 0.3, 0.1};
-    cylinder->right_transform = 1.0 / cylinder->left_transform;
-    cylinder->reflective = false;
-
-    vector<shared_ptr<Raytraceable>> objects;
-    objects.push_back(sphere);
-    objects.push_back(another_sphere);
-    objects.push_back(cylinder);
-
-    int width = 100;
-    int height = 100;
+    int width = 400;
+    int height = 400;
 
     default_random_engine generator;
-    generator.seed(random_device()());
     normal_distribution<real> distribution(0.0, 0.2 / (real) width);
 
     cout << "P2" << endl;
@@ -437,138 +80,12 @@ int main_cartesian ()
         for (int i = 0; i < width; ++i) {
             real x = 1 - 2 * (i / (real) width) + distribution(generator);
             real y = y_ + distribution(generator);
-            quaternion target = look_at + x * vleft + y * up;
-            color pixel = raytrace(camera_pos, target, 10, objects);
+            quaternion target = {1, 0.3 * x, 0.3 * y, 0.2};
+            target = target / norm(target);
+            color pixel = raytrace_S3(camera_pos, target, 6, objects);
             cout << setw(4) << left << (int) (pixel.x * 255);
         }
         cout << endl;
     }
     return EXIT_SUCCESS;
-}
-
-/*
-int main_S3()
-{
-    quaternion camera_pos = {1, 0, 0, 0};
-
-    shared_ptr<Sphere> sphere = make_shared<Sphere>();
-    sphere->location = {1, 0.02, 0.1, 0.5};
-    sphere->location = sphere->location / norm(sphere->location);
-    sphere->radius = 0.2;
-    sphere->reflective = true;
-
-    shared_ptr<Sphere> sphere2 = make_shared<Sphere>();
-    sphere2->location = {1, -0.03, -0.5, 0.7};
-    sphere2->location = sphere2->location / norm(sphere2->location);
-    sphere2->radius = 0.1;
-    sphere2->reflective = false;
-
-    shared_ptr<Box> box = make_shared<Box>();
-    box->location = {1, 0.82, -0.2, 0.5};
-    box->location = box->location / norm(box->location);
-    box->length = 0.2;
-    box->width = 0.31;
-    box->height = 0.31;
-    box->depth = 0.23;
-    box->reflective = false;
-
-    vector<shared_ptr<Raytraceable>> objects;
-    objects.push_back(sphere);
-    objects.push_back(sphere2);
-    objects.push_back(box);
-
-    int width = 500;
-    int height = 500;
-
-    default_random_engine generator;
-    normal_distribution<real> distribution(0.0, 0.2 / (real) width);
-
-    cout << "P2" << endl;
-    cout << width << " " << height << endl;
-    cout << 255 << endl;
-    for (int j = 0; j < height; ++j) {
-        cerr << (j * 100) / height << "%" << endl;
-        real y_ = 1 - 2 * (j / (real) height);
-        for (int i = 0; i < width; ++i) {
-            real x = 1 - 2 * (i / (real) width) + distribution(generator);
-            real y = y_ + distribution(generator);
-            quaternion target = {1, x, y, 1};
-            target = target / norm(target);
-            color pixel = raytrace_S3(camera_pos, target, 6, objects);
-            cout << setw(4) << left << (int) (pixel.r * 255);
-        }
-        cout << endl;
-    }
-    return EXIT_SUCCESS;
-}
-*/
-
-void test_trace() {
-    quaternion source = {0, 0, 0, -2};
-    quaternion target = {0, 0, 0, 0};
-    Sphere *sphere = new Sphere;
-    auto [surface, direction] = sphere->trace(source, target);
-    assert(norm(surface - (quaternion){0, 0, 0, -1}) < ACCURACY);
-}
-
-void test_scale() {
-    quaternion source = {0, 0, 3, 0};
-    quaternion target = {0, 0, 0, 0};
-    Sphere *sphere = new Sphere;
-    sphere->scale = sphere->scale * 0.5;
-    auto [surface, direction] = sphere->trace(source, target);
-    assert(norm(surface - (quaternion){0, 0, 0.5, 0}) < ACCURACY);
-}
-
-void test_location() {
-    quaternion source = {0, 1, 0.2, 0};
-    quaternion target = {0, 0, 0, 0.1};
-    Sphere *sphere = new Sphere;
-    sphere->location = {0, 0, 0.2, 0.1};
-    sphere->scale = sphere->scale * 0.5;
-    auto [surface, direction] = sphere->trace(source, target);
-    assert(norm(surface - (quaternion){0, 0.486928, 0.0973857, 0.0513072}) < ACCURACY);
-    real radius = norm(surface - sphere->location);
-    assert(radius > 0.5 - ACCURACY);
-    assert(radius < 0.5 + ACCURACY);
-}
-
-void test_great_circle() {
-    default_random_engine generator;
-    generator.seed(random_device()());
-    normal_distribution<real> distribution(0.0, 1);
-    quaternion source = {
-        distribution(generator),
-        distribution(generator),
-        distribution(generator),
-        distribution(generator)
-    };
-    quaternion target = {
-        distribution(generator),
-        distribution(generator),
-        distribution(generator),
-        distribution(generator)
-    };
-    source = source / norm(source);
-    target = target / norm(target);
-
-    quaternion omega = cross_align(source, target);
-
-    real min_distance = numeric_limits<real>::infinity();
-    for (int i = 0; i < 100; ++i) {
-        real theta = M_PI * i * 0.02;
-        quaternion v = cos(theta) * source + sin(theta) * omega;
-        if (norm(v - target) < min_distance) {
-            min_distance = norm(v - target);
-        }
-    }
-    assert(min_distance < 0.1);
-}
-
-int main() {
-    test_trace();
-    test_scale();
-    test_location();
-    test_great_circle();
-    return main_cartesian();
 }

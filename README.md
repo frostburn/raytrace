@@ -2,7 +2,18 @@
 Brute-force raytracing
 
 ## Compiling
-clang++ --std c++17 main.cpp
+```
+mkdir build; cd build
+cmake ..
+make
+```
+
+## Testing
+```
+make test
+```
 
 ## Running
-./a.out > image.pgm
+```
+./bin/render > image.pgm
+```
