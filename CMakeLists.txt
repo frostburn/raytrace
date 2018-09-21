@@ -15,6 +15,9 @@ ADD_SUBDIRECTORY(test)
 ADD_EXECUTABLE(render main.cpp)
 TARGET_LINK_LIBRARIES(render raytrace)
 
+ADD_EXECUTABLE(render_cartesian main_cartesian.cpp)
+TARGET_LINK_LIBRARIES(render_cartesian raytrace)
+
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
