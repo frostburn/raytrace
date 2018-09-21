@@ -6,9 +6,10 @@
 #include <memory>
 #include <random>
 #include <cassert>
-using namespace std;
 
-typedef double real;
+#include "raytrace/quaternion.h"
+
+using namespace std;
 
 const real ACCURACY = 0.01;
 const int RAY_MARCH_ITERATIONS = 5000;
@@ -17,97 +18,6 @@ const int NEWTON_ITERATIONS = 10;
 const real NEWTON_EPSILON = 1e-5;
 
 const real EPSILON = 1e-12;
-
-struct quaternion
-{
-    real r;
-    real x;
-    real y;
-    real z;
-};
-
-typedef quaternion color;
-
-std::ostream& operator<<(std::ostream& os, const quaternion& v)
-{
-    return os << "(quaternion){" <<  v.r << ", " << v.x << ", " << v.y << ", " << v.z << "}"; 
-}
-
-real norm(quaternion v) {
-    return sqrt(v.x*v.x + v.y*v.y + v.z*v.z + v.r*v.r);
-}
-
-quaternion conjugate(quaternion v) {
-    return (quaternion){v.r, -v.x, -v.y, -v.z};
-}
-
-quaternion operator -(const quaternion& v) {
-    return (quaternion){-v.r, -v.x, -v.y, -v.z};
-}
-
-quaternion operator *(const quaternion& a, const real b) {
-    return (quaternion){a.r * b, a.x * b, a.y * b, a.z * b};
-}
-
-quaternion operator *(const real b, const quaternion& a) {
-    return (quaternion){a.r * b, a.x * b, a.y * b, a.z * b};
-}
-
-quaternion operator /(const quaternion& a, const real b) {
-    return a * (1.0 / b);
-}
-
-quaternion operator /(const real a, const quaternion& b) {
-    real r = b.x*b.x + b.y*b.y + b.z*b.z + b.r*b.r;
-    return (a / r) * conjugate(b);
-}
-
-quaternion operator +(const quaternion& a, const quaternion& b) {
-    return (quaternion){a.r + b.r, a.x + b.x, a.y + b.y, a.z + b.z};
-}
-
-quaternion operator -(const quaternion& a, const quaternion& b) {
-    return (quaternion){a.r - b.r, a.x - b.x, a.y - b.y, a.z - b.z};
-}
-
-quaternion operator *(const quaternion& a, const quaternion& b) {
-    return (quaternion){
-        a.r*b.r - a.x*b.x - a.y*b.y - a.z*b.z,
-        a.r*b.x + a.x*b.r + a.y*b.z - a.z*b.y,
-        a.r*b.y - a.x*b.z + a.y*b.r + a.z*b.x,
-        a.r*b.z + a.x*b.y - a.y*b.x + a.z*b.r
-    };
-}
-
-quaternion operator /(const quaternion& a, const quaternion& b) {
-    real r = b.x*b.x + b.y*b.y + b.z*b.z + b.r*b.r;
-    return a * conjugate(b) / r;
-}
-
-quaternion infinity () {
-    real inf = numeric_limits<real>::infinity();
-    return (quaternion){inf, inf, inf, inf};
-}
-
-real dot(const quaternion& a, const quaternion& b) {
-    return a.r * b.r + a.x * b.x + a.y * b.y + a.z * b.z;
-}
-
-quaternion project(const quaternion& a, const quaternion& b) {
-    return dot(a, b) * a;
-}
-
-quaternion cross_align(const quaternion& a, const quaternion& b) {
-    // Assumes |a| = 1
-    quaternion c = b;
-    real angle = dot(a, b);
-    if (angle > EPSILON) {
-        c = b / angle - a;
-    } else if (angle < -EPSILON) {
-        c = a - b / angle;
-    }
-    return c / norm(c);
-}
 
 class Raytraceable {
 public:
@@ -576,14 +486,14 @@ int main_S3()
                 point->scale = point->scale * 0.04;
                 point->reflective = false;
                 objects.push_back(point);
-                quaternion q = {1, 0, 0, 0.2};
-                q = q / norm(q);
-                point->location = q * point->location;
+                // quaternion q = {1, 0, 0, 0.2};
+                // q = q / norm(q);
+                // point->location = q * point->location;
             }
         }
     }
-    int width = 300;
-    int height = 300;
+    int width = 2048;
+    int height = 2048;
 
     default_random_engine generator;
     normal_distribution<real> distribution(0.0, 0.2 / (real) width);
@@ -635,41 +545,6 @@ void test_location() {
     real radius = norm(surface - sphere->location);
     assert(radius > 0.5 - ACCURACY);
     assert(radius < 0.5 + ACCURACY);
-}
-
-void test_great_circle() {
-    default_random_engine generator;
-    generator.seed(random_device()());
-    normal_distribution<real> distribution(0.0, 1);
-    quaternion source = {
-        distribution(generator),
-        distribution(generator),
-        distribution(generator),
-        distribution(generator)
-    };
-    quaternion target = {
-        distribution(generator),
-        distribution(generator),
-        distribution(generator),
-        distribution(generator)
-    };
-    source = source / norm(source);
-    target = target / norm(target);
-
-    quaternion omega = cross_align(source, target);
-
-    real min_distance = numeric_limits<real>::infinity();
-    real closest_theta = 0;
-    for (int i = 0; i < 100; ++i) {
-        real theta = M_PI * i * 0.02;
-        quaternion v = cos(theta) * source + sin(theta) * omega;
-        if (norm(v - target) < min_distance) {
-            min_distance = norm(v - target);
-            closest_theta = theta;
-        }
-    }
-    assert(closest_theta < M_PI);
-    assert(min_distance < 0.1);
 }
 
 void test_trace_S3() {
@@ -737,7 +612,6 @@ int main() {
     test_trace();
     test_scale();
     test_location();
-    test_great_circle();
     test_trace_S3();
     // test_trace_S3_random();  // TODO: Fix
     // return main_cartesian();
