@@ -10,10 +10,6 @@
 #include "raytrace/quaternion.h"
 #include "raytrace/gradient_traceable.h"
 
-const real NEWTON_NUDGE = 0.01;
-const int NEWTON_ITERATIONS = 10;
-const real NEWTON_EPSILON = 1e-5;
-
 std::tuple<quaternion, quaternion, real> GradientTraceable::trace_S3(quaternion source, quaternion target) {
     target = cross_align(source, target);
     // Ray geodesic: source * cos(t) + target * sin(t)

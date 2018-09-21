@@ -59,14 +59,14 @@ int main()
                 point->scale = point->scale * 0.04;
                 point->reflective = false;
                 objects.push_back(point);
-                // quaternion q = {1, 0, 0, 0.2};
-                // q = q / norm(q);
-                // point->location = q * point->location;
+                quaternion q = {1, 0, 0, 0.2};
+                q = q / norm(q);
+                point->location = q * point->location;
             }
         }
     }
-    int width = 300;
-    int height = 300;
+    int width = 400;
+    int height = 400;
 
     default_random_engine generator;
     normal_distribution<real> distribution(0.0, 0.2 / (real) width);

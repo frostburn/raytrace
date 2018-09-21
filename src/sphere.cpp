@@ -66,3 +66,103 @@ std::tuple<quaternion, quaternion> Sphere::trace(quaternion source, quaternion t
     }
     return {this->project(u + t * w) + this->location, direction};
 }
+
+
+std::tuple<quaternion, quaternion, real> Sphere::trace_S3(quaternion source, quaternion target) {
+    target = cross_align(source, target);
+    // Ray geodesic: source * cos(t) + target * sin(t)
+
+    quaternion sp = this->inverse_project(source);
+    quaternion tp = this->inverse_project(target);
+    quaternion c = this->inverse_project(-this->location);
+
+    // Signed distance estimate: s(source*cos(t) + target*sin(t))
+    // ds / dt = dot(-source*sin(t) + target*cos(t), grad s)
+
+    quaternion v;
+    real t = 0;
+    real cos_t = 1;
+    real sin_t = 0;
+
+    real t_closest = 0;
+    real f_closest = std::numeric_limits<real>::infinity();
+    for (int i = 0; i < SPHERE_NEWTON_WARMUP; ++i) {
+        t = 2 * M_PI / (real) SPHERE_NEWTON_WARMUP;
+        cos_t = cos(t);
+        sin_t = sin(t);
+        v = sp*cos_t + tp*sin_t + c;
+        real f = this->s_distance(v);
+        if (fabs(f) < f_closest) {
+            f_closest = f;
+            t_closest = t;
+        }
+    }
+    t = t_closest;
+
+    real min_gradient = std::numeric_limits<real>::infinity();
+    real t_min = 0;
+
+    // Newton's method
+    for (int i = 0; i < SPHERE_NEWTON_ITERATIONS; ++i) {
+        cos_t = cos(t);
+        sin_t = sin(t);
+        v = sp*cos_t + tp*sin_t + c;
+        quaternion grad = this->gradient(v);
+        real dt = dot(tp*cos_t - sp*sin_t, grad);
+        if (fabs(dt) < min_gradient) {
+            min_gradient = fabs(dt);
+            t_min = t;
+        }
+        if (fabs(dt) < NEWTON_EPSILON) {
+            dt = NEWTON_NUDGE;
+        } else {
+            real f = this->s_distance(v);
+            dt = -f / dt;
+        }
+        if (dt > 0.5 * M_PI) {
+            dt = 0.5 * M_PI;
+        } else if (dt < -0.5 * M_PI) {
+            dt = -0.5 * M_PI;
+        }
+        t += dt;
+    }
+    if (this->s_distance(v) > NEWTON_EPSILON) {
+        return {infinity(), infinity(), std::numeric_limits<real>::infinity()};
+    }
+
+    // Gradient descent to find the midpoint
+    for (int i = 0; i < SPHERE_NEWTON_DESCENDS; ++i) {
+        cos_t = cos(t_min);
+        sin_t = sin(t_min);
+        v = sp*cos_t + tp*sin_t + c;
+        quaternion grad = this->gradient(v);
+        real dt = dot(tp*cos_t - sp*sin_t, grad);
+        t_min -= 0.1 * dt;
+    }
+    // Relect the root around the midpoint to find another root.
+    real t1 = 2*t_min - t;
+
+    // A few more Newton's iterations to focus on the second root
+    for (int i = 0; i < SPHERE_NEWTON_SECOND_ROOT; ++i) {
+        cos_t = cos(t1);
+        sin_t = sin(t1);
+        v = sp*cos_t + tp*sin_t + c;
+        quaternion grad = this->gradient(v);
+        real dt = dot(tp*cos_t - sp*sin_t, grad);
+        real f = this->s_distance(v);
+        dt = -f / dt;
+        t1 += dt;
+    }
+
+    // Snap to [0, tau] range
+    t -= 2*M_PI * floor(0.5*t/M_PI);
+    t1 -= 2*M_PI * floor(0.5*t1/M_PI);
+
+    if (t1 < t) {
+        t = t1;
+    }
+
+    cos_t = cos(t);
+    sin_t = sin(t);
+    return {source*cos_t + target*sin_t, target*cos_t - source*sin_t, t};
+}

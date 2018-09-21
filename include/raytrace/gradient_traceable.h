@@ -4,6 +4,10 @@
 #include "raytrace/quaternion.h"
 #include "raytrace/ray_traceable.h"
 
+const real NEWTON_NUDGE = 0.01;
+const int NEWTON_ITERATIONS = 10;
+const real NEWTON_EPSILON = 1e-5;
+
 class GradientTraceable: public RayTraceable {
 public:
     virtual quaternion gradient(quaternion) = 0;
