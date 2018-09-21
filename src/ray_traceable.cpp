@@ -43,6 +43,7 @@ std::tuple<quaternion, quaternion> RayTraceable::trace(quaternion source, quater
 
     source = this->inverse_project(source - this->location);
     target = this->inverse_project(target - this->location);
+    dt = this->inverse_project(dt);
 
     real a = this->s_distance(source);
     real b = this->s_distance(target);

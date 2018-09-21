@@ -18,8 +18,8 @@ using namespace std;
 
 int main ()
 {
-    quaternion camera_pos = {0, 0, 1, -2.2};
-    quaternion look_at = {0, 0, 0, 0};
+    quaternion camera_pos = {0, 1, 0.5, -2.2};
+    quaternion look_at = {0, 0, 0.3, 0};
     quaternion up = {0, 0, 1, 0};
     real view_width = 1;
 
@@ -33,10 +33,10 @@ int main ()
     up = up / norm(up) * view_width;
 
     shared_ptr<Sphere> sphere = make_shared<Sphere>();
-    sphere->location = {0, 0, 0, 0};
-    // sphere->scale = sphere->scale * 1.4;
-    sphere->scale.y = 0.5;
-    sphere->reflective = false;
+    sphere->location = {0, 0, -0.2, 0};
+    sphere->scale = sphere->scale * 1.4;
+    sphere->scale.y = 0.3;
+    sphere->reflective = true;
 
     shared_ptr<Sphere> another_sphere = make_shared<Sphere>();
     another_sphere->location = {0, 0.2, 0.4, 0.5};
@@ -52,11 +52,11 @@ int main ()
 
     vector<shared_ptr<RayTraceable>> objects;
     objects.push_back(sphere);
-    // objects.push_back(another_sphere);
-    // objects.push_back(cylinder);
+    objects.push_back(another_sphere);
+    objects.push_back(cylinder);
 
-    int width = 50;
-    int height = 50;
+    int width = 250;
+    int height = 250;
 
     default_random_engine generator;
     generator.seed(random_device()());

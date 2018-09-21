@@ -32,7 +32,6 @@ color Sphere::get_color(quaternion location, quaternion ray) {
 }
 
 std::tuple<quaternion, quaternion> Sphere::trace(quaternion source, quaternion target) {
-    return RayTraceable::trace(source, target);
     // Solve for t
     // |v|^2 = 1
     // v = source + t * (target - source)

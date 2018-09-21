@@ -11,7 +11,7 @@
 #include "raytrace/ray_traceable.h"
 #include "raytrace/trace.h"
 
-const int RAYTRACE_NUDGE = 0.01;
+const real RAYTRACE_NUDGE = 0.01;
 
 color raytrace(quaternion source, quaternion target, int depth, const std::vector<std::shared_ptr<RayTraceable>>& objects) {
     if (depth <= 0) {
