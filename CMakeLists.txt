@@ -18,6 +18,9 @@ TARGET_LINK_LIBRARIES(render raytrace)
 ADD_EXECUTABLE(render_cartesian main_cartesian.cpp)
 TARGET_LINK_LIBRARIES(render_cartesian raytrace)
 
+ADD_EXECUTABLE(debug_sphere debug_sphere.cpp)
+TARGET_LINK_LIBRARIES(debug_sphere raytrace)
+
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
