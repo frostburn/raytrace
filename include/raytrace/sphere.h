@@ -4,13 +4,10 @@
 #include "raytrace/quaternion.h"
 #include "raytrace/gradient_traceable.h"
 
-const int SPHERE_RAY_MARCH_DIVISIONS = 128;
-const int SPHERE_BIJECT_ITERATIONS = 8;
-const int SPHERE_NEWTON_ITERATIONS = 0;
+const int SPHERE_APPROACH_ITERATIONS = 128;
+const real SPHERE_EPSILON = 1e-12;
 
 class Sphere: public GradientTraceable {
-private:
-    real newton(real, real, real, real, real, quaternion, quaternion, quaternion);
 public:
     real s_distance(quaternion);
     quaternion normal(quaternion);

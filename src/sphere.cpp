@@ -67,44 +67,6 @@ std::tuple<quaternion, quaternion> Sphere::trace(quaternion source, quaternion t
     return {this->project(u + t * w) + this->location, direction};
 }
 
-real Sphere::newton(real t, real cos_t, real sin_t, real f, real dt, quaternion sp, quaternion tp, quaternion c) {
-    real initial_dt = dt;
-    int i = 0;
-    while (true) {
-        if (fabs(dt) < NEWTON_EPSILON) {
-            dt = NEWTON_NUDGE;
-        } else {
-            dt = -f / dt;
-        }
-        t += dt;
-        i += 1;
-        if (i >= SPHERE_NEWTON_ITERATIONS) {
-            break;
-        }
-        // while (true) {
-            cos_t = cos(t);
-            sin_t = sin(t);
-            quaternion v = sp*cos_t + tp*sin_t + c;
-            f = this->s_distance(v);
-            quaternion grad = this->gradient(v);
-            dt = dot(tp*cos_t - sp*sin_t, grad);
-        //     if (dt * initial_dt >= 0) {
-        //         break;
-        //     } else {
-        //         if (initial_dt > 0) {
-        //             t += NEWTON_NUDGE;
-        //         } else {
-        //             t -= NEWTON_NUDGE;
-        //         }
-        //     }
-        // }
-    }
-    if (fabs(f) > NEWTON_EPSILON) {
-        return std::numeric_limits<real>::infinity();
-    }
-    return t;
-}
-
 std::tuple<quaternion, quaternion, real> Sphere::trace_S3(quaternion source, quaternion target) {
     target = cross_align(source, target);
 
@@ -121,72 +83,31 @@ std::tuple<quaternion, quaternion, real> Sphere::trace_S3(quaternion source, qua
     // real f = c2 + cos_t * (s2 * cos_t + sc + st * sin_t) + sin_t * (tc + t2 * sin_t) - 1;
     // real df/dt = -sin_t*(sc + st * sin_t) + cos_t * (st * cos_t + tc - 2 * (s2 - t2) * sin_t);
 
+    // real estimated_min_distance = c2 - s2 - fabs(sc) - fabs(st) - fabs(tc) - t2;
+    // if (estimated_min_distance > 1) {
+    //     return {infinity(), infinity(), std::numeric_limits<real>::infinity()};
+    // }
 
-    real f_min_estimate = s2 + t2 + c2 + fabs(sc) + fabs(st) + fabs(tc) + 1;
-    if (f_min_estimate < 0) {
-        return {infinity(), infinity(), std::numeric_limits<real>::infinity()};
-    }
-
-    quaternion v;
     real t = 0;
     real cos_t = 1;
     real sin_t = 0;
-
-    real a;
-    real b = c2 + s2 + sc - 1;
-    real f_min = b;
-    real t_min = 0;
-    for (int i = 1; i < SPHERE_RAY_MARCH_DIVISIONS; ++i) {
-        t = i * 2*M_PI / (real) SPHERE_RAY_MARCH_DIVISIONS;
-        sin_t = sin(t);
+    real squared_distance_to_center = c2 + s2 + sc;
+    for (int i = 0; i < SPHERE_APPROACH_ITERATIONS; ++i) {
+        real orbital_velocity = norm(-sin_t * sp + cos_t * tp);
+        t += (sqrt(squared_distance_to_center) - 1) / orbital_velocity;
         cos_t = cos(t);
-        a = b;
-        b = c2 + cos_t * (s2 * cos_t + sc + st * sin_t) + sin_t * (tc + t2 * sin_t) - 1;
-        if (b < f_min) {
-            f_min = b;
-            t_min = t;
-        }
-        if(a*b <= 0) {
+        sin_t = sin(t);
+        squared_distance_to_center = c2 + cos_t * (s2 * cos_t + sc + st * sin_t) + sin_t * (tc + t2 * sin_t);
+        if (squared_distance_to_center < 1 + SPHERE_EPSILON) {
             break;
         }
-    }
-    real t0 = t - 2*M_PI / (real) SPHERE_RAY_MARCH_DIVISIONS;
-    if (a*b <= 0) {
-        for (int i = 0; i < SPHERE_BIJECT_ITERATIONS; ++i) {
-            real half_way = 0.5 * (t0 + t);
-            real c = c2 + cos_t * (s2 * cos_t + sc + st * sin_t) + sin_t * (tc + t2 * sin_t) - 1;
-            if (c < f_min) {
-                f_min = c;
-            }
-            if (a*c >= 0) {
-                a = c;
-                t0 = half_way;
-            } else if (b*c >= 0) {
-                b = c;
-                t = half_way;
-            } else {
-                break;
-            }
+        if (t > 2*M_PI) {
+            return {infinity(), infinity(), std::numeric_limits<real>::infinity()};
         }
-        t = 0.5 * (t + t0);
-    } else {
-        t = t_min;
     }
-
-    for (int i = 0; i < SPHERE_NEWTON_ITERATIONS; ++i) {
-        real f = c2 + cos_t * (s2 * cos_t + sc + st * sin_t) + sin_t * (tc + t2 * sin_t) - 1;
-        real dt = -sin_t*(sc + st * sin_t) + cos_t * (st * cos_t + tc - 2 * (s2 - t2) * sin_t);
-        if (f < f_min) {
-            f_min = f;
-        }
-        t -= f/dt;
-    }
-
-    if (f_min > 0) {
+    if (squared_distance_to_center > 1 + SPHERE_EPSILON) {
         return {infinity(), infinity(), std::numeric_limits<real>::infinity()};
     }
 
-    cos_t = cos(t);
-    sin_t = sin(t);
     return {source*cos_t + target*sin_t, target*cos_t - source*sin_t, t};
 }

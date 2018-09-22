@@ -16,6 +16,8 @@
 
 using namespace std;
 
+const int SPHERE_NEWTON_ITERATIONS = 10;
+
 real sphere_newton(Sphere *sphere, real t, quaternion sp, quaternion tp, quaternion c) {
     // TODO: Reuse f and grad from warmup
     real cos_t = 1;
