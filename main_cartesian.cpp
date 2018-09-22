@@ -62,7 +62,7 @@ int main ()
     generator.seed(random_device()());
     normal_distribution<real> distribution(0.0, 0.2 / (real) width);
 
-    cout << "P2" << endl;
+    cout << "P3" << endl;
     cout << width << " " << height << endl;
     cout << 255 << endl;
     for (int j = 0; j < height; ++j) {
@@ -73,7 +73,11 @@ int main ()
             real y = y_ + distribution(generator);
             quaternion target = look_at + x * vleft + y * up;
             color pixel = raytrace(camera_pos, target, 10, objects);
+            pixel = clip_color(pixel);
             cout << setw(4) << left << (int) (pixel.x * 255);
+            cout << setw(4) << left << (int) (pixel.y * 255);
+            cout << setw(4) << left << (int) (pixel.z * 255);
+            cout << " ";
         }
         cout << endl;
     }

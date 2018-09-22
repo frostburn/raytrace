@@ -15,10 +15,10 @@ const real RAYTRACE_NUDGE = 0.01;
 
 color raytrace(quaternion source, quaternion target, int depth, const std::vector<std::shared_ptr<RayTraceable>>& objects) {
     if (depth <= 0) {
-        return (color){0, 0.05, 0, 0};
+        return (color){0, 0, 0, 0};
     }
     std::vector<std::shared_ptr<RayTraceable>>::const_iterator obj;
-    color result = {0, 0.05, 0, 0};
+    color result = {0, 0.01, 0.02, 0.03};
     quaternion closest_surface = infinity();
 
     for (obj = objects.begin(); obj != objects.end(); ++obj) {
@@ -48,10 +48,10 @@ color raytrace(quaternion source, quaternion target, int depth, const std::vecto
 
 color raytrace_S3(quaternion source, quaternion target, int depth, const std::vector<std::shared_ptr<RayTraceable>>& objects) {
     if (depth <= 0) {
-        return (color){0, 0.05, 0, 0};
+        return (color){0, 0, 0, 0};
     }
     std::vector<std::shared_ptr<RayTraceable>>::const_iterator obj;
-    color result = {0, 0.05, 0, 0};
+    color result = {0, 0.01, 0.02, 0.03};
     quaternion closest_surface = infinity();
     real closest_distance = std::numeric_limits<real>::infinity();
 

@@ -47,4 +47,6 @@ quaternion project(const quaternion& a, const quaternion& b);
 
 quaternion cross_align(const quaternion& a, const quaternion& b);
 
+color clip_color(const color& a);
+
 #endif

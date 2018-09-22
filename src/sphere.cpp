@@ -25,10 +25,10 @@ quaternion Sphere::gradient(quaternion location) {
 color Sphere::get_color(quaternion location, quaternion ray) {
     quaternion n = this->normal(location);
     real angle = -dot(n, ray);
-    if (angle < 0.1) {
-        angle = 0.1 - 0.1 * fabs(angle);
+    if (angle < 0) {
+        return (color) {-1, -angle, 0, 0};
     }
-    return (color) {0, fabs(angle), 0, 0};
+    return angle * this->pigment;
 }
 
 std::tuple<quaternion, quaternion> Sphere::trace(quaternion source, quaternion target) {

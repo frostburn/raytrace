@@ -46,7 +46,7 @@ int main()
 
     int grid_height = 4 - 1;
     int grid_width = 4 - 1;
-    int grid_depth = 3;
+    int grid_depth = 4;
     for (int j = 0; j <= grid_height; ++j) {
         real y = 1 - 2 * (j / (real) grid_height);
         for (int i = 0; i <= grid_width; ++i) {
@@ -56,6 +56,8 @@ int main()
                 shared_ptr<Sphere> point = make_shared<Sphere>();
                 point->location = {1, 0.2 * x, 0.2 * y, 0.2 * z};
                 point->location = point->location / norm(point->location);
+                point->pigment = {0, 1.1 + x, 1.2 + y, z * 0.3};
+                point->pigment = point->pigment * 0.6;
                 point->scale = point->scale * 0.04;
                 point->reflective = false;
                 objects.push_back(point);
@@ -71,7 +73,7 @@ int main()
     default_random_engine generator;
     normal_distribution<real> distribution(0.0, 0.2 / (real) width);
 
-    cout << "P2" << endl;
+    cout << "P3" << endl;
     cout << width << " " << height << endl;
     cout << 255 << endl;
     for (int j = 0; j < height; ++j) {
@@ -83,7 +85,11 @@ int main()
             quaternion target = {1, 0.3 * x, 0.3 * y, 0.2};
             target = target / norm(target);
             color pixel = raytrace_S3(camera_pos, target, 6, objects);
+            pixel = clip_color(pixel);
             cout << setw(4) << left << (int) (pixel.x * 255);
+            cout << setw(4) << left << (int) (pixel.y * 255);
+            cout << setw(4) << left << (int) (pixel.z * 255);
+            cout << " ";
         }
         cout << endl;
     }

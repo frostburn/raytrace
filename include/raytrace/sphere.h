@@ -9,6 +9,7 @@ const real SPHERE_EPSILON = 1e-12;
 
 class Sphere: public GradientTraceable {
 public:
+    color pigment {0, 1, 1, 1};
     real s_distance(quaternion);
     quaternion normal(quaternion);
     quaternion gradient(quaternion);

@@ -86,3 +86,32 @@ quaternion cross_align(const quaternion& a, const quaternion& b) {
     }
     return c / norm(c);
 }
+
+color clip_color(const color& a) {
+    color pixel = a;
+    if (pixel.r > 1) {
+        pixel.r = 1;
+    }
+    if (pixel.r < 0) {
+        pixel.r = 0;
+    }
+    if (pixel.x > 1) {
+        pixel.x = 1;
+    }
+    if (pixel.x < 0) {
+        pixel.x = 0;
+    }
+    if (pixel.y > 1) {
+        pixel.y = 1;
+    }
+    if (pixel.y < 0) {
+        pixel.y = 0;
+    }
+    if (pixel.z > 1) {
+        pixel.z = 1;
+    }
+    if (pixel.z < 0) {
+        pixel.z = 0;
+    }
+    return pixel;
+}
