@@ -18,8 +18,21 @@ using namespace std;
 
 int main()
 {
-    quaternion camera_pos = {1, 0.1, 0.05, -0.3};
-    camera_pos = camera_pos / norm(camera_pos);
+    quaternion camera_transform = {1, 0.2, 0.05, -0.5};
+    camera_transform = camera_transform / norm(camera_transform);
+    quaternion target_transform = {1, 0.05, -0.15, 0.05};
+    target_transform = target_transform / norm(target_transform);
+
+    // TODO: Sensible camera definitions
+    // quaternion camera_pos = {1, 0.1, 0.05, -0.3};
+    // camera_pos = camera_pos / norm(camera_pos);
+
+    // quaternion look_at = {1, 0, 0, 0};
+    // quaternion look_direction = look_at - camera_pos;
+    // look_direction = look_direction / norm(look_direction);
+
+    real view_width = 0.2;
+    real view_depth = 0.5;
 
     vector<shared_ptr<RayTraceable>> objects;
 
@@ -97,9 +110,10 @@ int main()
         for (int i = 0; i < width; ++i) {
             real x = 1 - 2 * (i / (real) width) + distribution(generator);
             real y = y_ + distribution(generator);
-            quaternion target = {1, 0.3 * x, 0.3 * y, 0.2};
+            quaternion target = {0, x*view_width, y*view_width, view_depth};
+            target = 1 + target_transform * target / target_transform;
             target = target / norm(target);
-            color pixel = raytrace_S3(camera_pos, target, 6, objects);
+            color pixel = raytrace_S3(camera_transform, target * camera_transform, 6, objects);
             pixel = clip_color(pixel);
             cout << setw(4) << left << (int) (pixel.x * 255);
             cout << setw(4) << left << (int) (pixel.y * 255);

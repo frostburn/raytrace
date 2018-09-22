@@ -44,6 +44,10 @@ quaternion operator +(const quaternion& a, const quaternion& b) {
     return (quaternion){a.r + b.r, a.x + b.x, a.y + b.y, a.z + b.z};
 }
 
+quaternion operator +(const real& a, const quaternion& b) {
+    return (quaternion){a + b.r, b.x, b.y, b.z};
+}
+
 quaternion operator -(const quaternion& a, const quaternion& b) {
     return (quaternion){a.r - b.r, a.x - b.x, a.y - b.y, a.z - b.z};
 }

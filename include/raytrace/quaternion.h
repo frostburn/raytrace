@@ -33,6 +33,8 @@ quaternion operator /(const real a, const quaternion& b);
 
 quaternion operator +(const quaternion& a, const quaternion& b);
 
+quaternion operator +(const real& a, const quaternion& b);
+
 quaternion operator -(const quaternion& a, const quaternion& b);
 
 quaternion operator *(const quaternion& a, const quaternion& b);
