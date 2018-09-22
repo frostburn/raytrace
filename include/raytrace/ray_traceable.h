@@ -9,7 +9,7 @@ public:
     quaternion left_transform {1, 0, 0, 0};
     quaternion right_transform {1, 0, 0, 0};
     quaternion location {0, 0, 0, 0};
-    bool reflective {false};
+    real reflection {0};
     virtual real s_distance(quaternion) = 0;
     virtual quaternion normal(quaternion) = 0;
     virtual color get_color(quaternion, quaternion) = 0;

@@ -30,12 +30,13 @@ color raytrace(quaternion source, quaternion target, int depth, const std::vecto
         surface = (*obj)->inverse_project(surface - (*obj)->location);
         ray = (*obj)->inverse_project(ray);
         result = (*obj)->get_color(surface, ray / norm(ray));
-        if ((*obj)->reflective) {
+        real ref = (*obj)->reflection;
+        if (ref) {
             quaternion normal = (*obj)->normal(surface);
             ray = ray - 2 * dot(ray, normal) * normal;
             // surface = (*obj)->project(surface) + (*obj)->location;
             ray = (*obj)->project(ray);
-            result = 0.1 * result + 0.9 * raytrace(
+            result = (1 - ref) * result + ref * raytrace(
                 closest_surface + RAYTRACE_NUDGE * ray,
                 closest_surface + ray,
                 depth - 1,
@@ -65,7 +66,8 @@ color raytrace_S3(quaternion source, quaternion target, int depth, const std::ve
         surface = (*obj)->inverse_project(surface - (*obj)->location);
         ray = (*obj)->inverse_project(ray);
         result = (*obj)->get_color(surface, ray / norm(ray));
-        if ((*obj)->reflective) {
+        real ref = (*obj)->reflection;
+        if (ref) {
             quaternion normal = (*obj)->normal(surface);
             ray = ray - 2 * dot(ray, normal) * normal;
             // surface = (*obj)->project(surface) + (*obj)->location;
@@ -74,7 +76,7 @@ color raytrace_S3(quaternion source, quaternion target, int depth, const std::ve
             target = source + ray;
             source = source / norm(source);
             target = target / norm(target);
-            result = 0.1 * result + 0.9 * raytrace_S3(
+            result = (1 - ref) * result + ref * raytrace_S3(
                 source,
                 target,
                 depth - 1,

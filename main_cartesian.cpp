@@ -36,19 +36,17 @@ int main ()
     sphere->location = {0, 0, -0.2, 0};
     sphere->scale = sphere->scale * 1.4;
     sphere->scale.y = 0.3;
-    sphere->reflective = true;
+    sphere->reflection = 0.9;
 
     shared_ptr<Sphere> another_sphere = make_shared<Sphere>();
     another_sphere->location = {0, 0.2, 0.4, 0.5};
     another_sphere->scale = another_sphere->scale * 0.2;
-    another_sphere->reflective = false;
 
     shared_ptr<CliffordTorus> cylinder = make_shared<CliffordTorus>();
     cylinder->location = {0, -0.3, 0.5, -0.2};
     cylinder->scale = cylinder->scale * 0.3;
     cylinder->left_transform = (quaternion){1, 0.3, 0.3, 0.1};
     cylinder->right_transform = 1.0 / cylinder->left_transform;
-    cylinder->reflective = false;
 
     vector<shared_ptr<RayTraceable>> objects;
     objects.push_back(sphere);
