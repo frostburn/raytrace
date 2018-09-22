@@ -91,6 +91,13 @@ int main()
     quaternion tp = sphere->inverse_project(target);
     quaternion c = sphere->inverse_project(-sphere->location);
 
+    real s2 = dot(sp, sp);
+    real st = 2*dot(sp, tp);
+    real sc = 2*dot(sp, c);
+    real t2 = dot(tp, tp);
+    real tc = 2*dot(tp, c);
+    real c2 = dot(c, c);
+
     quaternion v;
     real t = 0;
     real cos_t = 1;
@@ -107,10 +114,19 @@ int main()
         sin_t = sin(t);
         v = sp*cos_t + tp*sin_t + c;
         real f = sphere->s_distance(v);
-        cout << f;
+        f = (f+1) * (f+1) - 1;
+        // cout << f;
+        // real ff = sin_t*sin_t*t2 + sin_t*cos_t*st + sin_t*tc + cos_t*cos_t*s2 + cos_t*sc + c2 - 1;
+        real ff = cos_t*cos_t*s2 + cos_t*sin_t*st + cos_t*sc + sin_t*sin_t*t2 + sin_t*tc + c2 - 1;
+        real ffs = -1 + c2 + cos_t * (s2 * cos_t + sc + st * sin_t) + sin_t * (tc + t2 * sin_t);
+        // real ff = dot(v, v) - 1;
+        // cout << (ff - ffs);
         f = fabs(f);
-        quaternion grad = sphere->gradient(v);
+        // quaternion grad = sphere->gradient(v);
+        quaternion grad = 2*v;
         real dt = dot(tp*cos_t - sp*sin_t, grad);
+        real dtt = -sin_t*(sc + st * sin_t) + cos_t * (st * cos_t + tc - 2 * (s2 - t2) * sin_t);
+        cout << (dt - dtt);
         if (dt >= 0 && f < f_plus) {
             f_plus = f;
             t_plus = t;

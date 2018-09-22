@@ -107,58 +107,86 @@ real Sphere::newton(real t, real cos_t, real sin_t, real f, real dt, quaternion 
 
 std::tuple<quaternion, quaternion, real> Sphere::trace_S3(quaternion source, quaternion target) {
     target = cross_align(source, target);
-    // Ray geodesic: source * cos(t) + target * sin(t)
 
     quaternion sp = this->inverse_project(source);
     quaternion tp = this->inverse_project(target);
     quaternion c = this->inverse_project(-this->location);
+
+    real s2 = dot(sp, sp);
+    real st = 2*dot(sp, tp);
+    real sc = 2*dot(sp, c);
+    real t2 = dot(tp, tp);
+    real tc = 2*dot(tp, c);
+    real c2 = dot(c, c);
+    // real f = c2 + cos_t * (s2 * cos_t + sc + st * sin_t) + sin_t * (tc + t2 * sin_t) - 1;
+    // real df/dt = -sin_t*(sc + st * sin_t) + cos_t * (st * cos_t + tc - 2 * (s2 - t2) * sin_t);
+
+
+    real f_min_estimate = s2 + t2 + c2 + fabs(sc) + fabs(st) + fabs(tc) + 1;
+    if (f_min_estimate < 0) {
+        return {infinity(), infinity(), std::numeric_limits<real>::infinity()};
+    }
 
     quaternion v;
     real t = 0;
     real cos_t = 1;
     real sin_t = 0;
 
-    real t_plus = 0;
-    real t_minus = 0;
-    real f_plus = std::numeric_limits<real>::infinity();
-    real f_minus = std::numeric_limits<real>::infinity();
-    real cos_plus, sin_plus, cos_minus, sin_minus, dt_plus, dt_minus;
-    for (int i = 0; i < SPHERE_NEWTON_WARMUP; ++i) {
-        t = i * 2*M_PI / (real) SPHERE_NEWTON_WARMUP;
-        cos_t = cos(t);
+    real a;
+    real b = c2 + s2 + sc - 1;
+    real f_min = b;
+    real t_min = 0;
+    for (int i = 1; i < SPHERE_RAY_MARCH_DIVISIONS; ++i) {
+        t = i * 2*M_PI / (real) SPHERE_RAY_MARCH_DIVISIONS;
         sin_t = sin(t);
-        v = sp*cos_t + tp*sin_t + c;
-        real f = this->s_distance(v);
-        f = fabs(f);
-        quaternion grad = this->gradient(v);
-        real dt = dot(tp*cos_t - sp*sin_t, grad);
-        if (dt >= 0 && f < f_plus) {
-            f_plus = f;
-            t_plus = t;
-            cos_plus = cos_t;
-            sin_plus = sin_t;
-            dt_plus = dt;
+        cos_t = cos(t);
+        a = b;
+        b = c2 + cos_t * (s2 * cos_t + sc + st * sin_t) + sin_t * (tc + t2 * sin_t) - 1;
+        if (b < f_min) {
+            f_min = b;
+            t_min = t;
         }
-        if (dt < 0 && f < f_minus) {
-            f_minus = f;
-            t_minus = t;
-            cos_minus = cos_t;
-            sin_minus = sin_t;
-            dt_minus = dt;
+        if(a*b <= 0) {
+            break;
         }
     }
-    t = this->newton(t_plus, cos_plus, sin_plus, f_plus, dt_plus, sp, tp, c);
-    if (t == std::numeric_limits<real>::infinity()) {
+    real t0 = t - 2*M_PI / (real) SPHERE_RAY_MARCH_DIVISIONS;
+    if (a*b <= 0) {
+        for (int i = 0; i < SPHERE_BIJECT_ITERATIONS; ++i) {
+            real half_way = 0.5 * (t0 + t);
+            real c = c2 + cos_t * (s2 * cos_t + sc + st * sin_t) + sin_t * (tc + t2 * sin_t) - 1;
+            if (c < f_min) {
+                f_min = c;
+            }
+            if (a*c >= 0) {
+                a = c;
+                t0 = half_way;
+            } else if (b*c >= 0) {
+                b = c;
+                t = half_way;
+            } else {
+                break;
+            }
+        }
+        t = 0.5 * (t + t0);
+    } else {
+        t = t_min;
+    }
+
+    for (int i = 0; i < SPHERE_NEWTON_ITERATIONS; ++i) {
+        real f = c2 + cos_t * (s2 * cos_t + sc + st * sin_t) + sin_t * (tc + t2 * sin_t) - 1;
+        real dt = -sin_t*(sc + st * sin_t) + cos_t * (st * cos_t + tc - 2 * (s2 - t2) * sin_t);
+        if (f < f_min) {
+            f_min = f;
+        }
+        t -= f/dt;
+    }
+
+    if (f_min > 0) {
         return {infinity(), infinity(), std::numeric_limits<real>::infinity()};
     }
-    t_minus = this->newton(t_minus, cos_minus, sin_minus, f_minus, dt_minus, sp, tp, c);
-    t -= 2*M_PI * floor(0.5*t/M_PI);
-    t_minus -= 2*M_PI * floor(0.5*t_minus/M_PI);
-    if (t_minus < t) {
-        t = t_minus;
-    }
+
     cos_t = cos(t);
     sin_t = sin(t);
-
     return {source*cos_t + target*sin_t, target*cos_t - source*sin_t, t};
 }

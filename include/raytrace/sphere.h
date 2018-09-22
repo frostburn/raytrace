@@ -4,8 +4,9 @@
 #include "raytrace/quaternion.h"
 #include "raytrace/gradient_traceable.h"
 
-const int SPHERE_NEWTON_WARMUP = 512;
-const int SPHERE_NEWTON_ITERATIONS = 32;
+const int SPHERE_RAY_MARCH_DIVISIONS = 128;
+const int SPHERE_BIJECT_ITERATIONS = 8;
+const int SPHERE_NEWTON_ITERATIONS = 0;
 
 class Sphere: public GradientTraceable {
 private:

@@ -65,8 +65,8 @@ int main()
             }
         }
     }
-    int width = 1200;
-    int height = 1200;
+    int width = 500;
+    int height = 500;
 
     default_random_engine generator;
     normal_distribution<real> distribution(0.0, 0.2 / (real) width);
