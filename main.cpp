@@ -13,6 +13,7 @@
 #include "raytrace/gradient_traceable.h"
 #include "raytrace/sphere.h"
 #include "raytrace/clifford_torus.h"
+#include "raytrace/hyper_torus.h"
 #include "raytrace/trace.h"
 #include "raytrace/input_parser.h"
 
@@ -76,7 +77,7 @@ int main(int argc, char *argv[])
                 point->location = point->location / norm(point->location);
                 point->pigment = {0, 2.1 + x, 2.1 + y, 2.1 + z};
                 point->pigment = point->pigment / 3.2;
-                point->scale = point->scale * 0.04;
+                point->scale = point->scale * 0.02;
                 objects.push_back(point);
                 quaternion q = {0, 0, 0, 1};
                 q = exp(q * t);
@@ -119,6 +120,23 @@ int main(int argc, char *argv[])
     unit->scale = unit_scale;
     unit->reflection = 0.5;
     objects.push_back(unit);
+
+    shared_ptr<HyperTorus2> axis = make_shared<HyperTorus2>();
+    axis->location = {0, 0, 0, 0};
+    axis->minor_radius = 0.01;
+    quaternion q = {0, 1, 0, 0};
+    axis->left_transform = exp(q * t * 0.25);
+    axis->right_transform = exp(q * t * 0.25);
+    objects.push_back(axis);
+
+    axis = make_shared<HyperTorus2>();
+    axis->location = {0, 0, 0, 0};
+    axis->minor_radius = 0.01;
+    quaternion p = {sqrt(0.5), sqrt(0.5), 0, 0};
+    q = {0, 0, 1, 0};
+    axis->left_transform = p * exp(q * t * 0.25);
+    axis->right_transform = exp(q * t * 0.25) / p;
+    objects.push_back(axis);
 
     default_random_engine generator;
     normal_distribution<real> distribution(0.0, 0.2 / (real) width);

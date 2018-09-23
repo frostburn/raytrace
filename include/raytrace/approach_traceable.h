@@ -10,6 +10,7 @@ const real APPROACH_EPSILON = 1e-12;
 class ApproachTraceable: public RayTraceable {
 public:
     virtual std::tuple<quaternion, quaternion> trace(quaternion, quaternion);
+    virtual std::tuple<quaternion, quaternion, real> trace_S3(quaternion, quaternion);
 };
 
 #endif

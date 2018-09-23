@@ -4,8 +4,8 @@ from subprocess import *
 from pathlib import Path
 from shutil import rmtree
 
-n_frames = 512
-resolution = "480p"
+n_frames = 1024
+resolution = "720p"
 
 resolutions = {
     "2160p": (3840, 2160),
