@@ -11,11 +11,11 @@ std::ostream& operator<<(std::ostream& os, const quaternion& v)
     return os << "(quaternion){" <<  v.r << ", " << v.x << ", " << v.y << ", " << v.z << "}"; 
 }
 
-real norm(quaternion v) {
+real norm(const quaternion& v) {
     return sqrt(v.x*v.x + v.y*v.y + v.z*v.z + v.r*v.r);
 }
 
-quaternion conjugate(quaternion v) {
+quaternion conjugate(const quaternion& v) {
     return (quaternion){v.r, -v.x, -v.y, -v.z};
 }
 
@@ -23,19 +23,19 @@ quaternion operator -(const quaternion& v) {
     return (quaternion){-v.r, -v.x, -v.y, -v.z};
 }
 
-quaternion operator *(const quaternion& a, const real b) {
+quaternion operator *(const quaternion& a, const real& b) {
     return (quaternion){a.r * b, a.x * b, a.y * b, a.z * b};
 }
 
-quaternion operator *(const real b, const quaternion& a) {
+quaternion operator *(const real& b, const quaternion& a) {
     return (quaternion){a.r * b, a.x * b, a.y * b, a.z * b};
 }
 
-quaternion operator /(const quaternion& a, const real b) {
+quaternion operator /(const quaternion& a, const real& b) {
     return a * (1.0 / b);
 }
 
-quaternion operator /(const real a, const quaternion& b) {
+quaternion operator /(const real& a, const quaternion& b) {
     real r = b.x*b.x + b.y*b.y + b.z*b.z + b.r*b.r;
     return (a / r) * conjugate(b);
 }
@@ -89,6 +89,14 @@ quaternion cross_align(const quaternion& a, const quaternion& b) {
         c = a - b / angle;
     }
     return c / norm(c);
+}
+
+quaternion exp(const quaternion& v) {
+    real n = norm(v);
+    if (n == 0) {
+        return (quaternion){1, 0, 0, 0};
+    }
+    return exp(v.r) * (cos(n) + sin(n) / n * v);
 }
 
 color clip_color(const color& a) {

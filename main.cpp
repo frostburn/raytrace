@@ -6,6 +6,7 @@
 #include <memory>
 #include <random>
 #include <cassert>
+#include <string>
 
 #include "raytrace/quaternion.h"
 #include "raytrace/ray_traceable.h"
@@ -13,11 +14,36 @@
 #include "raytrace/sphere.h"
 #include "raytrace/clifford_torus.h"
 #include "raytrace/trace.h"
+#include "raytrace/input_parser.h"
 
 using namespace std;
 
-int main()
+int main(int argc, char *argv[])
 {
+    InputParser input(argc, argv);
+    if(input.cmdOptionExists("-h") || input.cmdOptionExists("--help")){
+        cerr << "Usage: " << argv[0] << " --time 3.14 --width 200 --height 200" << endl;
+        return EXIT_SUCCESS;
+    }
+
+    real t = 0;
+    int width = 100;
+    int height = 100;
+
+    const std::string &time = input.getCmdOption("--time");
+    if (!time.empty()){
+        t = std::stod(time);
+    }
+    const std::string &width_ = input.getCmdOption("--width");
+    if (!width_.empty()){
+        width = std::stoi(width_);
+    }
+    const std::string &height_ = input.getCmdOption("--height");
+    if (!height_.empty()){
+        height = std::stoi(height_);
+    }
+    real aspect_ratio = (real)width / (real)height;
+
     quaternion camera_transform = {1, 0.2, 0.05, -0.5};
     camera_transform = camera_transform / norm(camera_transform);
     quaternion target_transform = {1, 0.05, -0.15, 0.05};
@@ -52,8 +78,8 @@ int main()
                 point->pigment = point->pigment / 3.2;
                 point->scale = point->scale * 0.04;
                 objects.push_back(point);
-                quaternion q = {1, 0, 0, 0.5};
-                q = q / norm(q);
+                quaternion q = {0, 0, 0, 1};
+                q = exp(q * t);
                 point->location = q * point->location;
             }
         }
@@ -94,10 +120,6 @@ int main()
     unit->reflection = 0.5;
     objects.push_back(unit);
 
-
-    int width = 500;
-    int height = 500;
-
     default_random_engine generator;
     normal_distribution<real> distribution(0.0, 0.2 / (real) width);
 
@@ -108,7 +130,9 @@ int main()
         cerr << (j * 100) / height << "%" << endl;
         real y_ = 1 - 2 * (j / (real) height);
         for (int i = 0; i < width; ++i) {
-            real x = 1 - 2 * (i / (real) width) + distribution(generator);
+            real x = 1 - 2 * (i / (real) width);
+            x *= aspect_ratio;
+            x += distribution(generator);
             real y = y_ + distribution(generator);
             quaternion target = {0, x*view_width, y*view_width, view_depth};
             target = 1 + target_transform * target / target_transform;

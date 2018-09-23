@@ -7,6 +7,7 @@ ADD_LIBRARY(
   sphere.cpp
   clifford_torus.cpp
   trace.cpp
+  input_parser.cpp
 )
 INSTALL(
   DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../include/raytrace
