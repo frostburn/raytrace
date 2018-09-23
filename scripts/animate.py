@@ -1,8 +1,8 @@
 import sys
 from math import *
 from subprocess import *
-from pathlib import *
-
+from pathlib import Path
+from shutil import rmtree
 
 n_frames = 512
 resolution = "480p"
@@ -20,6 +20,7 @@ resolutions = {
 width, height = resolutions[resolution]
 
 basepath = Path("frames")
+rmtree(basepath, ignore_errors=True)
 basepath.mkdir(exist_ok=True)
 
 def render_frames(indices):
