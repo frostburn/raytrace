@@ -4,10 +4,12 @@ ADD_LIBRARY(
   quaternion.cpp
   ray_traceable.cpp
   gradient_traceable.cpp
+  approach_traceable.cpp
   sphere.cpp
   clifford_torus.cpp
   trace.cpp
   input_parser.cpp
+  hyper_torus.cpp
 )
 INSTALL(
   DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../include/raytrace

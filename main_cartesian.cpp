@@ -12,16 +12,17 @@
 #include "raytrace/gradient_traceable.h"
 #include "raytrace/sphere.h"
 #include "raytrace/clifford_torus.h"
+#include "raytrace/hyper_torus.h"
 #include "raytrace/trace.h"
 
 using namespace std;
 
 int main ()
 {
-    quaternion camera_pos = {0, 1, 0.5, -2.2};
+    quaternion camera_pos = {0, 1, 0.5, -3.2};
     quaternion look_at = {0, 0, 0.3, 0};
     quaternion up = {0, 0, 1, 0};
-    real view_width = 1;
+    real view_width = 1.5;
 
     // Hacky cross products
     quaternion vleft = (look_at - camera_pos) * up;
@@ -43,18 +44,31 @@ int main ()
     another_sphere->scale = another_sphere->scale * 0.2;
 
     shared_ptr<CliffordTorus> cylinder = make_shared<CliffordTorus>();
+    cylinder->pigment_a = {0, 0.5, 0.4, 0.3};
+    cylinder->pigment_b = {0, 0.3, 0.5, 0.2};
+    cylinder->pigment_c = {0, 0.1, 0.4, 0.5};
     cylinder->location = {0, -0.3, 0.5, -0.2};
     cylinder->scale = cylinder->scale * 0.3;
     cylinder->left_transform = (quaternion){1, 0.3, 0.3, 0.1};
     cylinder->right_transform = 1.0 / cylinder->left_transform;
 
+    shared_ptr<HyperTorus> torus = make_shared<HyperTorus>();
+    torus->minor_radius = 0.5;
+    torus->pigment_a = {0, 0.8, 0.4, 0.2};
+    torus->pigment_b = {0, 0.1, 0.1, 0.2};
+    torus->location = {0, 0.9, 0.5, -0.8};
+    torus->scale = {1, 0.4, 0.3, 0.2};
+    torus->left_transform = (quaternion){1, 0.3, 0.8, 0.1};
+    torus->right_transform = 1.0 / torus->left_transform;
+
     vector<shared_ptr<RayTraceable>> objects;
+    objects.push_back(torus);
     objects.push_back(sphere);
     objects.push_back(another_sphere);
     objects.push_back(cylinder);
 
-    int width = 250;
-    int height = 250;
+    int width = 500;
+    int height = 500;
 
     default_random_engine generator;
     generator.seed(random_device()());

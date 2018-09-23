@@ -35,9 +35,14 @@ quaternion CliffordTorus::gradient(quaternion location) {
 color CliffordTorus::get_color(quaternion location, quaternion ray) {
     quaternion n = this->normal(location);
     real angle = -dot(n, ray);
-    if (angle < 0.1) {
-        angle = 0.1 - 0.1 * fabs(angle);
+    if (angle < 0) {
+        return (color) {-1, -angle, 0, 0};
     }
-    real pattern = cos(10*location.r)*cos(10*location.x)*cos(10*location.y)*cos(10*location.z);
-    return (color) {0, (0.5 + 0.4 * pattern) * angle, 0, 0};
+    n = {location.y, location.z, 0, 0};
+    n = n*n;
+    n = n*n;
+    real r2 = n.r*n.r;
+    real x2 = n.x*n.x;
+    real y = 1 - r2 - x2;
+    return angle * (r2 * this->pigment_a + x2 * this->pigment_b + y * this->pigment_c);
 }
