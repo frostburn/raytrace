@@ -52,7 +52,7 @@ int main ()
     cylinder->left_transform = (quaternion){1, 0.3, 0.3, 0.1};
     cylinder->right_transform = 1.0 / cylinder->left_transform;
 
-    shared_ptr<HyperTorus> torus = make_shared<HyperTorus>();
+    shared_ptr<HyperTorus2> torus = make_shared<HyperTorus2>();
     torus->minor_radius = 0.5;
     torus->pigment_a = {0, 0.8, 0.4, 0.2};
     torus->pigment_b = {0, 0.1, 0.1, 0.2};
