@@ -34,6 +34,31 @@ quaternion RayTraceable::inverse_project(quaternion location) {
     };
 }
 
+quaternion RayTraceable::normal(quaternion location) {
+    quaternion d;
+    quaternion result;
+
+    d = {RAY_TRACEABLE_DIFF_EPSILON, 0, 0, 0};
+    result.r = this->s_distance(location + d) - this->s_distance(location - d);
+
+    d = {0, RAY_TRACEABLE_DIFF_EPSILON, 0, 0};
+    result.x = this->s_distance(location + d) - this->s_distance(location - d);
+
+    d = {0, 0, RAY_TRACEABLE_DIFF_EPSILON, 0};
+    result.y = this->s_distance(location + d) - this->s_distance(location - d);
+
+    d = {0, 0, 0, RAY_TRACEABLE_DIFF_EPSILON};
+    result.z = this->s_distance(location + d) - this->s_distance(location - d);
+
+    real n = norm(result);
+
+    if (n < 1e-12) {
+        return (quaternion){0, 0, 0, 0};
+    }
+
+    return result / n;
+}
+
 std::tuple<quaternion, quaternion> RayTraceable::trace(quaternion source, quaternion target) {
     quaternion direction = target - source;
     direction = direction / norm(direction);

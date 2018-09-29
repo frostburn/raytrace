@@ -11,6 +11,8 @@
 #include "raytrace/ray_traceable.h"
 #include "raytrace/gradient_traceable.h"
 #include "raytrace/sphere.h"
+#include "raytrace/mandelbrot.h"
+#include "raytrace/mandelbulb.h"
 #include "raytrace/clifford_torus.h"
 #include "raytrace/hyper_torus.h"
 #include "raytrace/trace.h"
@@ -20,7 +22,7 @@ using namespace std;
 int main ()
 {
     quaternion camera_pos = {0, 1, 0.5, -3.2};
-    quaternion look_at = {0, 0, 0.3, 0};
+    quaternion look_at = {0, 0, 0, 0};
     quaternion up = {0, 0, 1, 0};
     real view_width = 1.5;
 
@@ -39,33 +41,37 @@ int main ()
     sphere->scale.y = 0.3;
     sphere->reflection = 0.9;
 
-    shared_ptr<Sphere> another_sphere = make_shared<Sphere>();
-    another_sphere->location = {0, 0.2, 0.4, 0.5};
-    another_sphere->scale = another_sphere->scale * 0.2;
+    // shared_ptr<Sphere> another_sphere = make_shared<Sphere>();
+    // another_sphere->location = {0, 0.2, 0.4, 0.5};
+    // another_sphere->scale = another_sphere->scale * 0.2;
 
-    shared_ptr<CliffordTorus> cylinder = make_shared<CliffordTorus>();
-    cylinder->pigment_a = {0, 0.5, 0.4, 0.3};
-    cylinder->pigment_b = {0, 0.3, 0.5, 0.2};
-    cylinder->pigment_c = {0, 0.1, 0.4, 0.5};
-    cylinder->location = {0, -0.3, 0.5, -0.2};
-    cylinder->scale = cylinder->scale * 0.3;
-    cylinder->left_transform = (quaternion){1, 0.3, 0.3, 0.1};
-    cylinder->right_transform = 1.0 / cylinder->left_transform;
+    // shared_ptr<CliffordTorus> cylinder = make_shared<CliffordTorus>();
+    // cylinder->pigment_a = {0, 0.5, 0.4, 0.3};
+    // cylinder->pigment_b = {0, 0.3, 0.5, 0.2};
+    // cylinder->pigment_c = {0, 0.1, 0.4, 0.5};
+    // cylinder->location = {0, -0.3, 0.5, -0.2};
+    // cylinder->scale = cylinder->scale * 0.3;
+    // cylinder->left_transform = (quaternion){1, 0.3, 0.3, 0.1};
+    // cylinder->right_transform = 1.0 / cylinder->left_transform;
 
-    shared_ptr<HyperTorus2> torus = make_shared<HyperTorus2>();
-    torus->minor_radius = 0.5;
-    torus->pigment_a = {0, 0.8, 0.4, 0.2};
-    torus->pigment_b = {0, 0.1, 0.1, 0.2};
-    torus->location = {0, 0.9, 0.5, -0.8};
-    torus->scale = {1, 0.4, 0.3, 0.2};
-    torus->left_transform = (quaternion){1, 0.3, 0.8, 0.1};
-    torus->right_transform = 1.0 / torus->left_transform;
+    // shared_ptr<HyperTorus2> torus = make_shared<HyperTorus2>();
+    // torus->minor_radius = 0.5;
+    // torus->pigment_a = {0, 0.8, 0.4, 0.2};
+    // torus->pigment_b = {0, 0.1, 0.1, 0.2};
+    // torus->location = {0, 0.9, 0.5, -0.8};
+    // torus->scale = {1, 0.4, 0.3, 0.2};
+    // torus->left_transform = (quaternion){1, 0.3, 0.8, 0.1};
+    // torus->right_transform = 1.0 / torus->left_transform;
+
+    shared_ptr<Mandelbulb> mandelbulb = make_shared<Mandelbulb>();
+    mandelbulb->threshold = 0.5;
 
     vector<shared_ptr<RayTraceable>> objects;
-    objects.push_back(torus);
-    objects.push_back(sphere);
-    objects.push_back(another_sphere);
-    objects.push_back(cylinder);
+    // objects.push_back(sphere);
+    objects.push_back(mandelbulb);
+    // objects.push_back(torus);
+    // objects.push_back(another_sphere);
+    // objects.push_back(cylinder);
 
     int width = 500;
     int height = 500;

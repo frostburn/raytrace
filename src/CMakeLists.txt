@@ -10,6 +10,9 @@ ADD_LIBRARY(
   trace.cpp
   input_parser.cpp
   hyper_torus.cpp
+  mandelbrot.cpp
+  mandelbulb.cpp
+  power3d.cpp
 )
 INSTALL(
   DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../include/raytrace

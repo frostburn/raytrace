@@ -21,6 +21,9 @@ TARGET_LINK_LIBRARIES(render_cartesian raytrace)
 ADD_EXECUTABLE(debug_sphere debug_sphere.cpp)
 TARGET_LINK_LIBRARIES(debug_sphere raytrace)
 
+ADD_EXECUTABLE(plot2d main_plot_2d.cpp)
+TARGET_LINK_LIBRARIES(plot2d raytrace)
+
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
